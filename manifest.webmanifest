@@ -1,0 +1,15 @@
+{
+  "name":"LCMC · Mes heures",
+  "short_name":"Mes heures",
+  "description":"Suivi des heures – Le Coup de Main du Coin Erdre et Loire",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f3f7f8",
+  "theme_color":"#6b982f",
+  "icons":[{
+    "src":"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect rx='40' width='192' height='192' fill='%23123b63'/%3E%3Cpath d='M48 139V53h27v63h69v23z' fill='white'/%3E%3Cpath d='M108 35c27 5 43 24 40 53-27 1-45-13-51-39 13 11 25 17 39 22-6-17-16-28-28-36z' fill='%23e4b522'/%3E%3C/svg%3E",
+    "sizes":"192x192",
+    "type":"image/svg+xml",
+    "purpose":"any maskable"
+  }]
+}

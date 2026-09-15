@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#6b982f">
+  <meta name="description" content="Suivi des heures LCMC – Le Coup de Main du Coin Erdre et Loire">
+  <title>Mes heures · LCMC</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="theme-v2.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="farm-header">
+      <div class="professional-bar">
+        <button class="menu-button" id="menuButton" aria-label="Ouvrir les réglages">☰</button>
+        <div class="brand">
+          <div class="brand-mark"><span>LC</span><b>MC</b></div>
+          <div><strong>Le Coup de Main du Coin</strong><small>Erdre et Loire</small></div>
+        </div>
+        <span class="offline-pill" id="networkStatus">● Hors ligne prêt</span>
+      </div>
+      <div class="farm-visual">
+        <picture>
+          <source media="(min-width: 700px)" srcset="assets/farm-banner-tablet.jpg">
+          <img src="assets/farm-header-mobile.jpg" alt="Vache Prim’Holstein, poule et tracteur vert dans la campagne d’Erdre et Loire">
+        </picture>
+        <div class="visual-label"><span>MON ACTIVITÉ</span><strong>Mes heures</strong></div>
+      </div>
+    </header>
+
+    <main id="appMain">
+      <section class="view active" id="homeView">
+        <div class="period-row">
+          <button class="icon-button" id="prevMonth" aria-label="Mois précédent">‹</button>
+          <button class="period-button" id="monthPicker"></button>
+          <button class="icon-button" id="nextMonth" aria-label="Mois suivant">›</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat blue"><span>Heures</span><strong id="statHours">0 h</strong></article>
+          <article class="stat gold"><span>Chiffre d’affaires</span><strong id="statRevenue">0 €</strong></article>
+          <article class="stat green"><span>Jours travaillés</span><strong id="statDays">0</strong></article>
+          <article class="stat purple"><span>Moyenne / jour</span><strong id="statAverage">0 h</strong></article>
+        </div>
+
+        <section class="card quick-card action-panel">
+          <div><span class="eyebrow">Aujourd’hui</span><h1 id="todayLabel"></h1></div>
+          <button class="primary-button" data-open-entry>+ Ajouter mes heures</button>
+        </section>
+
+        <section class="section-block">
+          <div class="section-heading"><h2>Dernières journées</h2><button class="text-button" data-nav="calendar">Tout voir</button></div>
+          <div id="recentEntries" class="entry-list"></div>
+        </section>
+      </section>
+
+      <section class="view" id="farmsView">
+        <div class="page-heading"><div><span class="eyebrow">Mes clients</span><h1>Exploitations</h1></div><button class="primary-button compact" id="addFarmButton">+ Ajouter</button></div>
+        <div id="farmList" class="farm-list"></div>
+      </section>
+
+      <section class="view" id="calendarView">
+        <div class="page-heading"><div><span class="eyebrow">Vue mensuelle</span><h1>Calendrier</h1></div><button class="outline-button compact" id="exportButton">Exporter CSV</button></div>
+        <div class="period-row calendar-period"><button class="icon-button" id="calPrev">‹</button><strong id="calendarTitle"></strong><button class="icon-button" id="calNext">›</button></div>
+        <section class="calendar-card">
+          <div class="weekdays"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+        <section class="card selected-day" id="selectedDay"></section>
+      </section>
+
+      <section class="view" id="profileView">
+        <div class="page-heading"><div><span class="eyebrow">Mon activité</span><h1>Profil & réglages</h1></div></div>
+        <section class="card profile-card"><div class="avatar">RR</div><div><strong>Romain Rincé</strong><span>Le Coup de Main du Coin</span><small>Erdre et Loire</small></div></section>
+        <section class="settings-card">
+          <label>Tarif horaire <span><input id="rateInput" type="number" min="0" step="0.5"> € / h</span></label>
+          <button id="backupButton">Télécharger une sauvegarde <b>›</b></button>
+          <label class="restore-label">Restaurer une sauvegarde <span>Choisir un fichier</span><input id="restoreInput" type="file" accept="application/json"></label>
+          <button id="installButton" hidden>Installer l’application <b>›</b></button>
+        </section>
+        <p class="privacy-note">Tes données restent enregistrées sur cet appareil et l’application fonctionne même sans réseau.</p>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigation principale">
+      <button class="nav-button active" data-view="home"><span>⌂</span>Accueil</button>
+      <button class="nav-button" data-view="farms"><span>♜</span>Exploitations</button>
+      <button class="add-main" data-open-entry aria-label="Ajouter des heures">+</button>
+      <button class="nav-button" data-view="calendar"><span>▦</span>Calendrier</button>
+      <button class="nav-button" data-view="profile"><span>●</span>Profil</button>
+    </nav>
+  </div>
+
+  <dialog id="entryDialog">
+    <form method="dialog" id="entryForm">
+      <div class="dialog-head"><div><span class="eyebrow" id="entryMode">Nouvelle journée</span><h2>Saisir mes heures</h2></div><button class="close-button" type="button" data-close-dialog="entryDialog" aria-label="Fermer">×</button></div>
+      <label>Date<input id="entryDate" type="date" required></label>
+      <label>Exploitation<select id="entryFarm" required></select></label>
+      <div class="resume-notice" id="resumeNotice" hidden>✓ Journée déjà commencée : tes horaires enregistrés ont été chargés.</div>
+      <div class="time-section"><strong>Matin</strong><div class="time-grid"><label>Début<input id="morningStart" type="time"></label><label>Fin<input id="morningEnd" type="time"></label></div></div>
+      <div class="time-section"><strong>Après-midi</strong><div class="time-grid"><label>Début<input id="afternoonStart" type="time"></label><label>Fin<input id="afternoonEnd" type="time"></label></div></div>
+      <label>Pause non travaillée (minutes)<input id="breakMinutes" type="number" min="0" step="5" value="0"></label>
+      <label>Notes<textarea id="entryNotes" rows="3" placeholder="Travaux réalisés, matériel…"></textarea></label>
+      <div class="calculation">Total calculé <strong id="entryTotal">0 h</strong></div>
+      <button class="primary-button full" id="entrySubmit" value="default" type="submit">Enregistrer la journée</button>
+    </form>
+  </dialog>
+
+  <dialog id="farmDialog">
+    <form method="dialog" id="farmForm">
+      <div class="dialog-head"><div><span class="eyebrow">Nouveau client</span><h2>Ajouter une exploitation</h2></div><button class="close-button" type="button" data-close-dialog="farmDialog" aria-label="Fermer">×</button></div>
+      <label>Nom de l’exploitation<input id="farmName" required placeholder="Ex. GAEC des Prés"></label>
+      <label>Commune<input id="farmTown" placeholder="Ex. Ancenis-Saint-Géréon"></label>
+      <label>Couleur<select id="farmColor"><option value="#28755b">Vert</option><option value="#1d5c8e">Bleu</option><option value="#d0911d">Jaune</option><option value="#7755a5">Violet</option></select></label>
+      <button class="primary-button full" type="submit">Ajouter l’exploitation</button>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "appId": "fr.lcmc.mesheures",
+  "appName": "LCMC Mes heures",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
