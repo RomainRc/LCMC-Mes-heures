@@ -60,23 +60,3 @@ jobs:
         with:
           name: LCMC-Mes-Heures-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Installer Capacitor
-        run: npm install
-
-      - name: Creer Android
-        run: npx cap add android
-
-      - name: Synchroniser
-        run: npx cap sync android
-
-      - name: Fabriquer APK
-        run: |
-          chmod +x android/gradlew
-          cd android
-          ./gradlew assembleDebug
-
-      - name: Publier APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: LCMC-Mes-Heures-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
