@@ -41,11 +41,58 @@ $('#entryForm').addEventListener('submit',e=>{e.preventDefault();if(!state.farms
 $('#farmForm').addEventListener('submit',e=>{e.preventDefault();state.farms.push({id:crypto.randomUUID(),name:$('#farmName').value.trim(),town:$('#farmTown').value.trim(),color:$('#farmColor').value});saveState();$('#farmDialog').close();e.target.reset();toast('Exploitation ajoutée')});
 $('#rateInput').onchange=()=>{state.rate=Math.max(0,Number($('#rateInput').value)||0);saveState();toast('Tarif mis à jour')};
 $('#exportButton').onclick=()=>{const rows=[['Date','Exploitation','Matin début','Matin fin','Après-midi début','Après-midi fin','Pause (min)','Total heures','Montant (€)','Notes'],...state.entries.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,getFarm(e.farmId).name,e.morningStart,e.morningEnd,e.afternoonStart,e.afternoonEnd,e.breakMinutes,hoursFor(e).toFixed(2),(hoursFor(e)*state.rate).toFixed(2),e.notes])];download('\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(';')).join('\n'),`heures-lcmc-${activeMonth.getFullYear()}-${String(activeMonth.getMonth()+1).padStart(2,'0')}.csv`,'text/csv')};
-$('#backupButton').onclick=async()=>{const name=`sauvegarde-lcmc-${isoDate(new Date())}.json`;await saveOrShare(JSON.stringify(state,null,2),name,'application/json')};$('#restoreInput').onchange=async e=>{try{const data=JSON.parse(await e.target.files[0].text());if(!Array.isArray(data.entries)||!Array.isArray(data.farms))throw 0;state={...defaultState,...data};saveState();toast('Sauvegarde restaurée')}catch{toast('Fichier de sauvegarde invalide')}finally{e.target.value=''}};
-async function saveOrShare(content,name,type){const file=new File([content],name,{type});try{if(navigator.share&&navigator.canShare?.({files:[file]})){await navigator.share({title:'Sauvegarde LCMC',text:'Sauvegarde de mes heures LCMC',files:[file]});toast('Sauvegarde prête à être enregistrée');return}}catch(error){if(error?.name==='AbortError')return}download(content,name,type);toast('Sauvegarde téléchargée')}
-function download(content,name,type){const a=document.createElement('a');const url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+$('#backupButton').textContent='Enregistrer une sauvegarde';
+$('#backupButton').onclick=async()=>{
+  const button=$('#backupButton');
+  if(button.disabled)return;
+  button.disabled=true;
+  button.textContent='Enregistrement…';
+  try{await download(JSON.stringify(state,null,2),`sauvegarde-lcmc-${isoDate(new Date())}.json`,'application/json')}
+  finally{button.disabled=false;button.textContent='Enregistrer une sauvegarde'}
+};
+$('#restoreInput').onchange=async e=>{try{if(!e.target.files?.length)return;const data=JSON.parse(await e.target.files[0].text());if(!Array.isArray(data.entries)||!Array.isArray(data.farms))throw 0;state={...defaultState,...data};saveState();toast('Sauvegarde restaurée')}catch{toast('Fichier de sauvegarde invalide')}finally{e.target.value=''}};
+function showFileResult(message,failed=false){
+  let status=document.getElementById('fileSaveResult');
+  if(!status){
+    status=document.createElement('p');status.id='fileSaveResult';
+    status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+    status.style.cssText='padding:14px;margin:0;font-size:14px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-line';
+    $('#backupButton').insertAdjacentElement('afterend',status);
+  }
+  status.style.color=failed?'#a63f3f':'#386221';status.textContent=message;
+}
+async function download(content,name,type){
+  try{
+    const capacitor=window.Capacitor;
+    if(capacitor?.isNativePlatform?.()){
+      const filesystem=capacitor.Plugins?.Filesystem;
+      if(!filesystem)throw new Error('Le module de sauvegarde manque dans cet APK.');
+      let permission=await filesystem.checkPermissions();
+      if(permission.publicStorage!=='granted')permission=await filesystem.requestPermissions();
+      if(permission.publicStorage!=='granted')throw new Error('L’accès aux documents a été refusé.');
+      const uniqueName=name.replace(/(\.[^.]+)$/,`-${Date.now()}$1`);
+      const options={path:`LCMC/${uniqueName}`,directory:'DOCUMENTS',encoding:'utf8'};
+      showFileResult('Enregistrement en cours…');
+      await filesystem.writeFile({...options,data:content,recursive:true});
+      const saved=await filesystem.readFile(options);
+      if(saved.data!==content)throw new Error('Le contenu du fichier enregistré n’a pas pu être vérifié.');
+      showFileResult(`Fichier enregistré et vérifié.\nMes fichiers → Stockage interne → Documents → LCMC\n${uniqueName}`);
+      toast('Fichier enregistré et vérifié');
+      return true;
+    }
+    const a=document.createElement('a');const url=URL.createObjectURL(new Blob([content],{type}));
+    try{a.href=url;a.download=name;a.style.display='none';document.body.appendChild(a);a.click()}
+    finally{a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+    showFileResult('Téléchargement demandé au navigateur. Vérifie le fichier dans Téléchargements.');
+    return true;
+  }catch(error){
+    showFileResult(`Échec de l’enregistrement : ${error?.message||'erreur inconnue'}. Tes heures restent dans l’application.`,true);
+    toast('Le fichier n’a pas pu être enregistré');
+    return false;
+  }
+}
 function updateNetwork(){const el=$('#networkStatus');el.textContent=navigator.onLine?'● En ligne':'● Hors ligne prêt';el.classList.toggle('online',navigator.onLine)}window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);updateNetwork();
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('#installButton').hidden=false});$('#installButton').onclick=async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('#installButton').hidden=true}};
-if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
+if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'add_work_entry',title:'Ajouter une journée de travail',description:'Enregistre des horaires de travail dans l’application LCMC.',inputSchema:{type:'object',properties:{date:{type:'string'},farmId:{type:'string'},morningStart:{type:'string'},morningEnd:{type:'string'},afternoonStart:{type:'string'},afternoonEnd:{type:'string'},breakMinutes:{type:'number'},notes:{type:'string'}},required:['date','farmId'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){const e={id:crypto.randomUUID(),morningStart:'',morningEnd:'',afternoonStart:'',afternoonEnd:'',breakMinutes:0,notes:'',...input};if(!state.farms.some(f=>f.id===e.farmId)||hoursFor(e)<=0)throw new Error('Exploitation ou horaires invalides');state.entries.push(e);saveState();return{id:e.id,totalHours:hoursFor(e)}}}).catch?.(()=>{})}
 renderAll();
