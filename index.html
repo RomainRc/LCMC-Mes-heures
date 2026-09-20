@@ -8,8 +8,8 @@
   <title>Mes heures · LCMC</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="theme-v2.css">
+  <link rel="stylesheet" href="styles.css?v=20260920-2">
+  <link rel="stylesheet" href="theme-v2.css?v=20260920-2">
 </head>
 <body>
   <div class="app-shell">
@@ -81,6 +81,7 @@
           <label class="restore-label">Restaurer une sauvegarde <span>Choisir un fichier</span><input id="restoreInput" type="file" accept="application/json"></label>
           <button id="installButton" hidden>Installer l’application <b>›</b></button>
         </section>
+        <p class="privacy-note" id="appVersion">Version 20.09.2026 · correctif 2</p>
         <p class="privacy-note">Tes données restent enregistrées sur cet appareil et l’application fonctionne même sans réseau.</p>
       </section>
     </main>
@@ -120,6 +121,7 @@
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260920-2"></script>
 </body>
 </html>
+
