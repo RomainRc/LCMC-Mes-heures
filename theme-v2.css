@@ -271,13 +271,15 @@ dialog textarea,
   .bottom-nav { max-width: 1180px; }
 }
 
-/* Zone de sécurité Android : garde la navigation au-dessus des boutons système. */
-body { padding-bottom: max(env(safe-area-inset-bottom, 0px), 18px); }
-.app-shell { padding-bottom: calc(104px + max(env(safe-area-inset-bottom, 0px), 18px)); }
+/* Menu collé au bas de la zone de l'application.
+   Android réserve déjà les boutons système via adjustMarginsForEdgeToEdge.
+   Sur le Web, l'éventuelle zone sûre reste DANS le fond blanc du menu. */
+body { padding-bottom: 0; }
+.app-shell { padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
 .bottom-nav {
-  bottom: max(env(safe-area-inset-bottom, 0px), 18px);
-  height: 78px;
-  padding-bottom: 10px;
+  bottom: 0;
+  height: calc(78px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
-#toast { bottom: calc(106px + max(env(safe-area-inset-bottom, 0px), 18px)); }
+#toast { bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
 #backupButton { cursor: pointer; touch-action: manipulation; position: relative; z-index: 1; }
