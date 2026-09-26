@@ -99,11 +99,21 @@ jobs:
           signing_tool=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
           test -n "$signing_tool"
           expected=$(keytool -exportcert -keystore "$RUNNER_TEMP/lcmc-signing.jks" -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
-          actual=$("$signing_tool" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')
-          if [ "$expected" != "$actual" ]; then
+          apk_path=android/app/build/outputs/apk/debug/app-debug.apk
+          # Imposer la cle fixe au fichier final, puis verifier sans ignorer les erreurs.
+          "$signing_tool" sign --ks "$RUNNER_TEMP/lcmc-signing.jks" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out "$RUNNER_TEMP/lcmc-signed.apk" "$apk_path"
+          mv "$RUNNER_TEMP/lcmc-signed.apk" "$apk_path"
+          "$signing_tool" verify --verbose --print-certs "$apk_path" > "$RUNNER_TEMP/lcmc-certificates.txt"
+          cat "$RUNNER_TEMP/lcmc-certificates.txt"
+          # Accepter les libelles Signer #1 et Signer (minSdkVersion=...).
+          actual=$(sed -nE 's/^Signer .* certificate SHA-256 digest: ([0-9a-fA-F]+)[[:space:]]*$/\1/p' "$RUNNER_TEMP/lcmc-certificates.txt" | tr '[:upper:]' '[:lower:]' | sort -u)
+          if [ -z "$actual" ] || [ "$expected" != "$actual" ]; then
             echo "::error::La signature de l APK ne correspond pas a la cle fixe."
+            echo "Empreinte publique attendue: $expected"
+            echo "Empreinte publique lue: $actual"
             exit 1
           fi
+          echo "Signature fixe verifiee."
 
       - name: Effacer la copie temporaire de la cle
         if: always()
