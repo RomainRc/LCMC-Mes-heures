@@ -105,8 +105,8 @@ jobs:
           mv "$RUNNER_TEMP/lcmc-signed.apk" "$apk_path"
           "$signing_tool" verify --verbose --print-certs "$apk_path" > "$RUNNER_TEMP/lcmc-certificates.txt"
           cat "$RUNNER_TEMP/lcmc-certificates.txt"
-          # Accepter les libelles Signer #1 et Signer (minSdkVersion=...).
-          actual=$(sed -nE 's/^Signer .* certificate SHA-256 digest: ([0-9a-fA-F]+)[[:space:]]*$/\1/p' "$RUNNER_TEMP/lcmc-certificates.txt" | tr '[:upper:]' '[:lower:]' | sort -u)
+          # Accepter aussi le libelle V3.0 Signer des outils Android recents.
+          actual=$(sed -nE 's/^(Signer .*|V[0-9.]+ Signer:) certificate SHA-256 digest: ([0-9a-fA-F]+)[[:space:]]*$/\2/p' "$RUNNER_TEMP/lcmc-certificates.txt" | tr '[:upper:]' '[:lower:]' | sort -u)
           if [ -z "$actual" ] || [ "$expected" != "$actual" ]; then
             echo "::error::La signature de l APK ne correspond pas a la cle fixe."
             echo "Empreinte publique attendue: $expected"
