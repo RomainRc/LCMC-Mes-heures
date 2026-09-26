@@ -27,6 +27,19 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Restaurer la cle de signature fixe
+        env:
+          LCMC_SIGNING_KEY_BASE64: ${{ secrets.LCMC_SIGNING_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$LCMC_SIGNING_KEY_BASE64" ]; then
+            echo "::error::Ajoute le secret LCMC_SIGNING_KEY_BASE64 avant de fabriquer un APK."
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$LCMC_SIGNING_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/lcmc-signing.jks"
+          keytool -list -keystore "$RUNNER_TEMP/lcmc-signing.jks" -storepass android -alias androiddebugkey > /dev/null
+
       - name: Preparer les fichiers
         run: |
           mkdir -p www/assets
@@ -49,11 +62,52 @@ jobs:
       - name: Synchroniser
         run: npx cap sync android
 
+      - name: Configurer signature et numero de version
+        run: |
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file(System.getenv("RUNNER_TEMP") + "/lcmc-signing.jks")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              defaultConfig {
+                  versionCode 1000 + Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER"))
+                  versionName "1." + System.getenv("GITHUB_RUN_NUMBER")
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+          GRADLE
+
       - name: Fabriquer APK
         run: |
           chmod +x android/gradlew
           cd android
           ./gradlew assembleDebug
+
+      - name: Verifier la signature de l APK
+        run: |
+          set -euo pipefail
+          signing_tool=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -n "$signing_tool"
+          expected=$(keytool -exportcert -keystore "$RUNNER_TEMP/lcmc-signing.jks" -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
+          actual=$("$signing_tool" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::La signature de l APK ne correspond pas a la cle fixe."
+            exit 1
+          fi
+
+      - name: Effacer la copie temporaire de la cle
+        if: always()
+        run: rm -f "$RUNNER_TEMP/lcmc-signing.jks"
 
       - name: Publier APK
         uses: actions/upload-artifact@v4
