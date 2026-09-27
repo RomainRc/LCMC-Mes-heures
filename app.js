@@ -216,4 +216,234 @@ calendarPdf.textContent='PDF';calendarPdf.dataset.exportPdf='';calendarPdf.oncli
 $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 26.09.2026 · heures et kilomètres';
+versionLabel.textContent='Version 26.09.2026 · synchronisation des appareils';
+
+// Fusion a trois versions : base synchronisee, appareil, serveur.
+const LcmcSyncCore = (() => {
+  const copy = v => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+  const stable = v => JSON.stringify(v && typeof v === 'object' ? (Array.isArray(v) ? v.map(x=>JSON.parse(stable(x))) : Object.fromEntries(Object.keys(v).sort().map(k=>[k,JSON.parse(stable(v[k]))]))) : v ?? null);
+  const equal = (a,b) => stable(a) === stable(b);
+  function clean(s) {
+    if (!s || !Array.isArray(s.entries) || !Array.isArray(s.farms)) throw Error('Format de données invalide.');
+    const farms=s.farms.map(f=>({id:String(f.id),name:String(f.name||''),town:String(f.town||''),color:/^#[0-9a-f]{6}$/i.test(f.color)?f.color:'#719438'}));
+    const entries=s.entries.map(e=>({id:String(e.id),date:String(e.date),farmId:String(e.farmId),morningStart:String(e.morningStart||''),morningEnd:String(e.morningEnd||''),afternoonStart:String(e.afternoonStart||''),afternoonEnd:String(e.afternoonEnd||''),breakMinutes:Math.max(0,Number(e.breakMinutes)||0),notes:String(e.notes||''),kilometres:Math.max(0,Number(e.kilometres)||0)}));
+    for (const rows of [farms,entries]) {
+      if(rows.some(x=>!x.id || x.id==='undefined' || !/^[\w-]+$/.test(x.id))) throw Error('Un identifiant de sauvegarde est invalide.');
+      if(new Set(rows.map(x=>x.id)).size!==rows.length) throw Error('La sauvegarde contient des identifiants en double.');
+    }
+    if(entries.some(e=>!/^\d{4}-\d{2}-\d{2}$/.test(e.date))) throw Error('Une date de sauvegarde est invalide.');
+    return {rate:Math.max(0,Number(s.rate)||0),farms:farms.sort((a,b)=>a.id.localeCompare(b.id)),entries:entries.sort((a,b)=>a.id.localeCompare(b.id))};
+  }
+  function alignInitial(local,remote) {
+    const l=copy(local),norm=s=>s.trim().toLocaleLowerCase('fr');
+    const mapping=new Map();
+    for(const f of l.farms) {
+      const matches=remote.farms.filter(r=>norm(r.name)===norm(f.name)&&norm(r.town)===norm(f.town));
+      if(matches.length===1) mapping.set(f.id,matches[0].id);
+    }
+    for(const f of l.farms) f.id=mapping.get(f.id)||f.id;
+    for(const e of l.entries) e.farmId=mapping.get(e.farmId)||e.farmId;
+    l.farms=l.farms.filter((f,i,a)=>a.findIndex(x=>x.id===f.id)===i);
+    l.farms=l.farms.filter(f=>!(f.id==='lcdc'&&f.name==='Client principal'&&!l.entries.some(e=>e.farmId===f.id)&&!remote.farms.some(r=>r.id===f.id)));
+    for(const e of l.entries) {
+      if(remote.entries.some(r=>r.id===e.id))continue;
+      const matches=remote.entries.filter(r=>r.date===e.date&&r.farmId===e.farmId);
+      if(matches.length===1&&l.entries.filter(r=>r.date===e.date&&r.farmId===e.farmId).length===1)e.id=matches[0].id;
+    }
+    return l;
+  }
+  function merge(base,local,remote,preference=null) {
+    const conflicts=[];
+    function value(b,l,r,path) {
+      if(equal(l,r))return copy(l);
+      if(equal(l,b))return copy(r);
+      if(equal(r,b))return copy(l);
+      // Une suppression face a une modification requiert un choix explicite.
+      if(l&&r&&typeof l==='object'&&typeof r==='object'&&!Array.isArray(l)&&!Array.isArray(r)) {
+        const out={};
+        for(const k of new Set([...Object.keys(b||{}),...Object.keys(l),...Object.keys(r)])) {
+          const v=value(b?.[k],l[k],r[k],path+'.'+k);if(v!==undefined)out[k]=v;
+        }
+        return out;
+      }
+      conflicts.push({path,local:copy(l),remote:copy(r)});
+      return copy(preference==='remote'?r:l);
+    }
+    const data={rate:value(base.rate,local.rate,remote.rate,'Tarif horaire')};
+    for(const key of ['farms','entries']) {
+      const maps=[base,local,remote].map(s=>new Map(s[key].map(v=>[v.id,v])));
+      data[key]=[];
+      for(const id of new Set(maps.flatMap(m=>[...m.keys()]))) {
+        const row=maps[1].get(id)||maps[2].get(id)||maps[0].get(id);
+        const label=key==='entries'?'Journée '+row.date:'Exploitation '+row.name;
+        const v=value(...maps.map(m=>m.get(id)),label);
+        if(v!==undefined)data[key].push(v);
+      }
+    }
+    return {data:clean(data),conflicts};
+  }
+  return {copy,equal,clean,merge,alignInitial};
+})();
+if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
+
+// Synchronisation LCMC par Firebase Auth et Firestore REST, sans changer la signature APK.
+(() => {
+  const C=LcmcSyncCore;
+  const config={apiKey:'AIzaSyAyD31ozYIv25O9oCj5UQBJRExTf2h7g5E',projectId:'lcmc-mes-heures'};
+  const AUTH='lcmc-sync-auth-v1',META='lcmc-sync-meta-v1',RECOVERY='lcmc-before-sync-v1';
+  const read=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}};
+  let session=read(AUTH),meta=read(META)||{uid:null,base:null};
+  let busy=false,authBusy=false,paused=false,timer=null,conflict=null,resolution=null;
+  const editing=()=>!!document.querySelector('dialog[open]') || (!!document.activeElement?.matches('input,textarea,select') && !document.activeElement.closest('#lcmcSyncPanel'));
+  const panel=document.createElement('section');panel.id='lcmcSyncPanel';
+  panel.innerHTML=`<h2>Mes appareils</h2><p>Retrouve tes heures et kilomètres sur ton téléphone et ta tablette avec le même compte.</p>
+  <p id="lcmcSyncStatus" role="status" aria-live="polite"></p>
+  <form id="lcmcSyncForm"><label>Adresse e-mail<input id="lcmcSyncEmail" type="email" autocomplete="username" value="romain.rince1993@gmail.com" required></label>
+  <label>Mot de passe<input id="lcmcSyncPassword" type="password" autocomplete="current-password" minlength="6" required></label>
+  <div class="lcmc-sync-actions"><button type="submit">Se connecter</button><button type="button" id="lcmcSyncCreate">Créer mon compte</button></div>
+  <p>Crée ton compte une seule fois, puis connecte-toi avec les mêmes identifiants sur l’autre appareil.</p></form>
+  <div id="lcmcSyncConnected" hidden><p id="lcmcSyncAccount"></p><div class="lcmc-sync-actions"><button id="lcmcSyncNow" type="button">Synchroniser maintenant</button><button id="lcmcSyncLogout" type="button">Se déconnecter</button></div></div>
+  <div id="lcmcSyncConflict" hidden><h3>Modifications à départager</h3><p>Les deux appareils ont modifié les mêmes informations. Les autres modifications seront conservées.</p><div id="lcmcSyncConflictList"></div><div class="lcmc-sync-actions"><button id="lcmcSyncKeepLocal" type="button">Garder ces informations de cet appareil</button><button id="lcmcSyncKeepRemote" type="button">Garder ces informations synchronisées</button></div></div>
+  <p id="lcmcSyncLast"></p><small>Sans réseau, continue de saisir tes heures. Ouvre l’application avec Internet sur chaque appareil pour échanger les dernières modifications.</small>`;
+  const css=document.createElement('style');css.textContent=`#lcmcSyncPanel{background:#fff;border:1px solid #dde4e1;border-radius:12px;padding:20px;margin:20px 0;overflow-wrap:anywhere}#lcmcSyncPanel h2{margin:0 0 12px}#lcmcSyncPanel p{line-height:1.45;margin:10px 0}#lcmcSyncPanel label{display:grid;gap:7px;margin:14px 0;font-weight:600}#lcmcSyncPanel input{width:100%;min-width:0;box-sizing:border-box;padding:12px;border:1px solid #ccd6d3;border-radius:8px;font:inherit}#lcmcSyncPanel button{font:inherit;padding:12px;border:1px solid #ccd6d3;border-radius:8px;background:#f2f6ef;color:#355521;cursor:pointer;white-space:normal}#lcmcSyncPanel button:disabled{opacity:.5}#lcmcSyncPanel [hidden]{display:none!important}.lcmc-sync-actions{display:flex;gap:10px;flex-wrap:wrap}.lcmc-sync-actions button{flex:1;min-width:140px}#lcmcSyncStatus{font-weight:700;color:#355521}#lcmcSyncConflict{border-top:2px solid #cc9d36;margin-top:20px;padding-top:12px}#lcmcSyncConflictList p{font-size:14px;background:#fbf6ea;padding:10px}`;
+  document.head.appendChild(css);document.querySelector('#profileView').appendChild(panel);
+  const el=id=>document.getElementById(id);
+  function status(text,error=false){el('lcmcSyncStatus').textContent=text;el('lcmcSyncStatus').style.color=error?'#a63f3f':'#355521'}
+  function ui(){
+    el('lcmcSyncForm').hidden=!!session;el('lcmcSyncConnected').hidden=!session;
+    el('lcmcSyncAccount').textContent=session?'Connecté : '+session.email:'';
+    el('lcmcSyncLast').textContent=meta.last?'Dernier échange réussi : '+new Date(meta.last).toLocaleString('fr-FR'):'';
+    el('lcmcSyncNow').disabled=busy;
+  }
+  function persistMeta(next){localStorage.setItem(META,JSON.stringify(next));meta=next}
+  function schedule(delay=1200){clearTimeout(timer);timer=setTimeout(()=>sync(),delay)}
+  function explain(err){
+    const code=err.code||'';
+    if(/INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(code))return 'Adresse e-mail ou mot de passe incorrect.';
+    if(/EMAIL_EXISTS/.test(code))return 'Ce compte existe déjà. Utilise « Se connecter ».';
+    if(/OPERATION_NOT_ALLOWED|CONFIGURATION_NOT_FOUND/.test(code))return 'Active Adresse e-mail / Mot de passe dans Firebase Authentication.';
+    if(/WEAK_PASSWORD/.test(code))return 'Choisis un mot de passe d’au moins 6 caractères.';
+    if(/INVALID_EMAIL/.test(code))return 'Vérifie ton adresse e-mail.';
+    if(/PERMISSION_DENIED/.test(code))return 'Accès refusé : les règles Firestore doivent autoriser ton compte. Les données restent sur cet appareil.';
+    if(/RESOURCE_EXHAUSTED|TOO_MANY_ATTEMPTS/.test(code))return 'Service temporairement limité. Réessaie plus tard ; tes données sont conservées.';
+    if(err.name==='AbortError'||err instanceof TypeError)return 'Connexion indisponible. Tes saisies restent sur cet appareil ; nouvel essai au retour du réseau.';
+    return err.message||'Synchronisation interrompue. Tes saisies restent sur cet appareil.';
+  }
+  async function request(url,options={}){
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+    try{
+      const res=await fetch(url,{...options,signal:controller.signal});
+      const data=await res.json();
+      if(!res.ok){const error=new Error(data.error?.message||'Erreur du service');error.code=data.error?.status||data.error?.message||'';error.http=res.status;throw error}
+      return data;
+    }finally{clearTimeout(timeout)}
+  }
+  async function authenticate(create=false){
+    if(authBusy||busy)return;
+    const form=el('lcmcSyncForm');if(!form.reportValidity())return;
+    authBusy=true;form.querySelectorAll('button').forEach(b=>b.disabled=true);status('Connexion…');
+    try{
+      const email=el('lcmcSyncEmail').value.trim(),password=el('lcmcSyncPassword').value;
+      const data=await request('https://identitytoolkit.googleapis.com/v1/accounts:'+(create?'signUp':'signInWithPassword')+'?key='+config.apiKey,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,returnSecureToken:true})});
+      if(meta.uid&&meta.uid!==data.localId)throw Error('Cet appareil est lié à un autre compte. Reconnecte-toi au compte utilisé pour tes heures.');
+      if(!meta.uid){localStorage.setItem(RECOVERY,JSON.stringify(state));persistMeta({...meta,uid:data.localId,base:null})}
+      const next={uid:data.localId,email:data.email,idToken:data.idToken,refreshToken:data.refreshToken,expires:Date.now()+Number(data.expiresIn)*1000};
+      localStorage.setItem(AUTH,JSON.stringify(next));session=next;paused=false;
+      el('lcmcSyncPassword').value='';ui();schedule(0);
+    }catch(err){status(explain(err),true)}
+    finally{authBusy=false;form.querySelectorAll('button').forEach(b=>b.disabled=false)}
+  }
+  async function token(){
+    if(!session)throw Error('Connecte-toi pour synchroniser.');
+    if(session.expires>Date.now()+60000)return session.idToken;
+    try{
+      const data=await request('https://securetoken.googleapis.com/v1/token?key='+config.apiKey,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:session.refreshToken}).toString()});
+      if(data.user_id!==session.uid)throw Error('Compte inattendu. Reconnecte-toi.');
+      const next={...session,idToken:data.id_token,refreshToken:data.refresh_token,expires:Date.now()+Number(data.expires_in)*1000};
+      localStorage.setItem(AUTH,JSON.stringify(next));session=next;return session.idToken;
+    }catch(err){
+      if(/INVALID_REFRESH_TOKEN|TOKEN_EXPIRED|USER_DISABLED|USER_NOT_FOUND/.test(err.code||'')){localStorage.removeItem(AUTH);session=null;ui();throw Error('Ta session a expiré. Reconnecte-toi ; tes heures sont conservées.')}
+      throw err;
+    }
+  }
+  function remoteData(doc){
+    if(doc.fields?.schema?.integerValue!=='1')throw Error('Version des données synchronisées non reconnue.');
+    return C.clean(JSON.parse(doc.fields.payload.stringValue));
+  }
+  function showConflicts(result,remoteVersion){
+    conflict={remoteVersion};resolution=null;
+    const names={morningStart:'début du matin',morningEnd:'fin du matin',afternoonStart:'début de l’après-midi',afternoonEnd:'fin de l’après-midi',breakMinutes:'pause',notes:'notes',kilometres:'kilomètres',name:'nom',town:'commune',color:'couleur'};
+    el('lcmcSyncConflictList').replaceChildren();
+    for(const c of result.conflicts){
+      const p=document.createElement('p');const value=v=>v===undefined?'supprimé':typeof v==='object'?JSON.stringify(v):String(v);
+      const label=c.path.replace(/\.([^.]+)$/,(_,k)=>' — '+(names[k]||k));
+      p.textContent=label+'\nCet appareil : '+value(c.local)+'\nVersion synchronisée : '+value(c.remote);p.style.whiteSpace='pre-line';el('lcmcSyncConflictList').appendChild(p);
+    }
+    el('lcmcSyncConflict').hidden=false;status('Un choix est nécessaire dans Profil → Mes appareils.',true);
+  }
+  async function sync(){
+    if(busy||paused||!session||conflict||editing()||document.hidden)return;
+    if(!navigator.onLine){status('Hors connexion — saisies conservées sur cet appareil.');return}
+    busy=true;ui();status('Synchronisation…');
+    try{
+      const uid=session.uid;
+      if(meta.uid!==uid)throw Error('Ce compte ne correspond pas aux données de cet appareil.');
+      const bearer=await token();
+      const url='https://firestore.googleapis.com/v1/projects/'+config.projectId+'/databases/(default)/documents/users/'+encodeURIComponent(uid)+'/lcmc/state';
+      const headers={Authorization:'Bearer '+bearer,'Content-Type':'application/json'};
+      for(let attempt=0;attempt<4;attempt++){
+        let doc=null;
+        try{doc=await request(url,{headers})}catch(err){
+          // Seule l'absence du document est normale, pas l'absence de base Firestore.
+          if(err.http!==404||!/Document .* not found|No document to update|document.*does not exist/i.test(err.message))throw err;
+        }
+        if(!session||session.uid!==uid||paused)return;
+        if(editing()){schedule(3000);return}
+        const current=C.clean(state),before=C.copy(current);
+        let local=current,base=meta.base,remote=doc?remoteData(doc):null;
+        if(!base){base={rate:25,farms:[],entries:[]};if(remote)local=C.alignInitial(local,remote)}
+        // Une disparition inattendue du cloud doit être examinée, pas propagée en suppression.
+        if(!doc&&meta.base)throw Error('Les données en ligne sont introuvables. Tes données locales sont conservées. Vérifie la base Firebase.');
+        const result=remote?C.merge(base,local,remote,resolution?.version===doc.updateTime?resolution.choice:null):{data:local,conflicts:[]};
+        if(result.conflicts.length&&resolution?.version!==doc?.updateTime){showConflicts(result,doc.updateTime);return}
+        const data=result.data;
+        if(!remote||!C.equal(data,remote)){
+          const payload=JSON.stringify(data);
+          if(new TextEncoder().encode(payload).length>750000)throw Error('Ton historique dépasse la taille de cette version de synchronisation. Tes données restent locales ; une mise à niveau est nécessaire.');
+          const query=doc?'currentDocument.updateTime='+encodeURIComponent(doc.updateTime):'currentDocument.exists=false';
+          try{await request(url+'?'+query,{method:'PATCH',headers,body:JSON.stringify({fields:{schema:{integerValue:'1'},payload:{stringValue:payload}}})})}
+          catch(err){if(['FAILED_PRECONDITION','ABORTED','ALREADY_EXISTS'].includes(err.code))continue;throw err}
+        }
+        // Ne jamais remplacer une saisie effectuée pendant la requête réseau.
+        if(editing()||!C.equal(C.clean(state),before)){schedule(500);return}
+        localStorage.setItem(STORE_KEY,JSON.stringify({...state,...data}));
+        state={...state,...data};
+        persistMeta({...meta,base:C.copy(data),last:Date.now()});
+        resolution=null;el('lcmcSyncConflict').hidden=true;
+        renderAll();status('À jour — heures et kilomètres synchronisés.');ui();return;
+      }
+      status('L’autre appareil enregistre des changements. Nouvel essai dans un instant.');schedule(3000);
+    }catch(err){status(explain(err),true)}finally{busy=false;ui()}
+  }
+  el('lcmcSyncForm').onsubmit=e=>{e.preventDefault();authenticate(false)};
+  el('lcmcSyncCreate').onclick=()=>authenticate(true);
+  el('lcmcSyncNow').onclick=()=>{conflict=null;resolution=null;el('lcmcSyncConflict').hidden=true;sync()};
+  el('lcmcSyncLogout').onclick=()=>{
+    if(busy||authBusy){status('Attends la fin de l’échange avant de te déconnecter.');return}
+    paused=true;localStorage.removeItem(AUTH);session=null;conflict=null;resolution=null;el('lcmcSyncConflict').hidden=true;status('Déconnecté. Tes données restent sur cet appareil.');ui();
+  };
+  for(const [id,choice] of [['lcmcSyncKeepLocal','local'],['lcmcSyncKeepRemote','remote']])el(id).onclick=()=>{
+    if(!conflict)return;
+    localStorage.setItem(RECOVERY,JSON.stringify(state));
+    resolution={version:conflict.remoteVersion,choice};conflict=null;el('lcmcSyncConflict').hidden=true;sync();
+  };
+  const originalSave=saveState;
+  saveState=function(){originalSave();conflict=null;resolution=null;el('lcmcSyncConflict').hidden=true;status(session?'Enregistré sur cet appareil — échange en attente.':'Enregistré sur cet appareil. Connecte-toi pour synchroniser.');schedule()};
+  window.addEventListener('online',()=>schedule(0));
+  window.addEventListener('offline',()=>status('Hors connexion — saisies conservées sur cet appareil.'));
+  window.addEventListener('focus',()=>schedule(0));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0)});
+  setInterval(()=>sync(),60000);
+  ui();status(session?'Connexion à tes données…':'Connecte-toi sur tes deux appareils pour partager tes saisies.');
+  if(session)schedule(0);
+})();
