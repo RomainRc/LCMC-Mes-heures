@@ -145,16 +145,16 @@ main { padding: 20px 16px 16px; }
 .period-button { padding: 10px 18px; color: var(--ink); background: #fff; }
 .icon-button { width: 38px; height: 38px; color: var(--green); }
 
-.stats-grid { gap: 9px; }
+.stats-grid { gap: 12px; }
 .stat {
   min-height: 86px;
   padding: 13px 14px;
   border: 1px solid var(--line);
   border-left: 5px solid var(--green);
-  border-radius: 6px;
+  border-radius: 20px;
   background: #fff !important;
   color: var(--ink);
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 20px rgba(31, 48, 55, .11), 0 2px 5px rgba(31, 48, 55, .04);
 }
 .stat.blue { border-left-color: #447784; }
 .stat.gold { border-left-color: #d2a128; }
@@ -178,6 +178,8 @@ main { padding: 20px 16px 16px; }
   margin-top: 12px;
   padding: 0;
   overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(31, 48, 55, .10), 0 2px 5px rgba(31, 48, 55, .04);
 }
 .quick-card > div { flex: 1; padding: 16px; }
 .quick-card .primary-button {
@@ -251,7 +253,7 @@ dialog textarea,
   .farm-visual img { object-position: center 64%; transform: scale(.76); }
   .quick-card { flex-direction: row; align-items: stretch; }
   .quick-card .primary-button { width: auto; min-width: 138px; padding: 10px; }
-  .stats-grid { gap: 8px; }
+  .stats-grid { gap: 12px; }
   .stat { min-height: 82px; }
 }
 
@@ -283,3 +285,40 @@ body { padding-bottom: 0; }
 }
 #toast { bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
 #backupButton { cursor: pointer; touch-action: manipulation; position: relative; z-index: 1; }
+
+/* 29.09.2026 — retour tactile et ouverture douce de la saisie des heures. */
+[data-open-entry] {
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+[data-open-entry]:active {
+  transform: scale(.96);
+  filter: brightness(.94);
+}
+[data-open-entry]:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: -5px;
+}
+#entryDialog { border-radius: 22px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #entryDialog[open] {
+    animation: lcmc-entry-open 280ms cubic-bezier(.22, 1, .36, 1);
+  }
+  #entryDialog[open]::backdrop {
+    animation: lcmc-entry-backdrop 220ms ease-out;
+  }
+}
+@keyframes lcmc-entry-open {
+  from { opacity: 0; transform: translateY(18px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes lcmc-entry-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-open-entry] { transition: none; }
+  [data-open-entry]:active { transform: none; }
+}
