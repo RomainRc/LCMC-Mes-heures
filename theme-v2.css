@@ -286,7 +286,7 @@ body { padding-bottom: 0; }
 #toast { bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
 #backupButton { cursor: pointer; touch-action: manipulation; position: relative; z-index: 1; }
 
-/* 29.09.2026 — retour tactile et ouverture douce de la saisie des heures. */
+/* 29.09.2026 — retour tactile et zoom de la saisie des heures. */
 [data-open-entry] {
   cursor: pointer;
   touch-action: manipulation;
@@ -300,25 +300,28 @@ body { padding-bottom: 0; }
   outline: 3px solid var(--blue);
   outline-offset: -5px;
 }
-#entryDialog { border-radius: 22px; }
+#entryDialog { border-radius: 22px; transform-origin: center center; }
+#entryDialog.is-closing { pointer-events: none; }
 
+/* Le zoom du panneau est piloté par app.js pour attendre sa fermeture. */
 @media (prefers-reduced-motion: no-preference) {
-  #entryDialog[open] {
-    animation: lcmc-entry-open 280ms cubic-bezier(.22, 1, .36, 1);
-  }
   #entryDialog[open]::backdrop {
-    animation: lcmc-entry-backdrop 220ms ease-out;
+    animation: lcmc-entry-backdrop-in 380ms ease-out;
+  }
+  #entryDialog[open].is-closing::backdrop {
+    animation: lcmc-entry-backdrop-out 260ms ease-in forwards;
   }
 }
-@keyframes lcmc-entry-open {
-  from { opacity: 0; transform: translateY(18px) scale(.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes lcmc-entry-backdrop {
+@keyframes lcmc-entry-backdrop-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@keyframes lcmc-entry-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   [data-open-entry] { transition: none; }
   [data-open-entry]:active { transform: none; }
 }
+
