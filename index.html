@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css?v=20260920-2">
-  <link rel="stylesheet" href="theme-v2.css?v=20260920-2">
+  <link rel="stylesheet" href="theme-v2.css?v=20261003-1">
 </head>
 <body>
   <div class="app-shell">
@@ -53,6 +53,7 @@
 
         <section class="section-block">
           <div class="section-heading"><h2>Dernières journées</h2><button class="text-button" data-nav="calendar">Tout voir</button></div>
+          <p class="entry-gesture-hint" id="recentEntriesHint">Maintiens une journée pour la supprimer.</p>
           <div id="recentEntries" class="entry-list"></div>
         </section>
       </section>
@@ -69,6 +70,7 @@
           <div class="weekdays"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div>
           <div id="calendarGrid" class="calendar-grid"></div>
         </section>
+        <p class="entry-gesture-hint" id="selectedDayHint">Maintiens une journée pour la supprimer.</p>
         <section class="card selected-day" id="selectedDay"></section>
       </section>
 
@@ -77,11 +79,20 @@
         <section class="card profile-card"><div class="avatar">RR</div><div><strong>Romain Rincé</strong><span>Le Coup de Main du Coin</span><small>Erdre et Loire</small></div></section>
         <section class="settings-card">
           <label>Tarif horaire <span><input id="rateInput" type="number" min="0" step="0.5"> € / h</span></label>
+          <label class="entry-motion-setting" for="entryMotionSelect">
+            <span>Animation des fenêtres</span>
+            <select id="entryMotionSelect" aria-describedby="entryMotionHint">
+              <option value="auto">Suivre le téléphone</option>
+              <option value="on">Zoom visible</option>
+              <option value="off">Sans animation</option>
+            </select>
+            <small id="entryMotionHint"></small>
+          </label>
           <button id="backupButton">Télécharger une sauvegarde <b>›</b></button>
           <label class="restore-label">Restaurer une sauvegarde <span>Choisir un fichier</span><input id="restoreInput" type="file" accept="application/json"></label>
           <button id="installButton" hidden>Installer l’application <b>›</b></button>
         </section>
-        <p class="privacy-note" id="appVersion">Version 20.09.2026 · correctif 2</p>
+        <p class="privacy-note" id="appVersion">Version 03.10.2026 · zoom et appui long</p>
         <p class="privacy-note">Tes données restent enregistrées sur cet appareil et l’application fonctionne même sans réseau.</p>
       </section>
     </main>
@@ -110,6 +121,21 @@
     </form>
   </dialog>
 
+  <dialog id="deleteEntryDialog" aria-labelledby="deleteEntryTitle" aria-describedby="deleteEntryNotice">
+    <div class="deletion-panel">
+      <div class="dialog-head">
+        <h2 id="deleteEntryTitle">Supprimer cette journée ?</h2>
+        <button id="deleteEntryClose" class="close-button" type="button" aria-label="Fermer">×</button>
+      </div>
+      <div id="deleteEntrySummary"></div>
+      <p id="deleteEntryNotice">Les heures et les kilomètres indiqués seront supprimés. Si tes appareils sont connectés au même compte, cette suppression sera synchronisée.</p>
+      <div class="deletion-actions">
+        <button id="deleteEntryCancel" type="button" autofocus>Annuler</button>
+        <button id="deleteEntryConfirm" type="button">Supprimer</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="farmDialog">
     <form method="dialog" id="farmForm">
       <div class="dialog-head"><div><span class="eyebrow">Nouveau client</span><h2>Ajouter une exploitation</h2></div><button class="close-button" type="button" data-close-dialog="farmDialog" aria-label="Fermer">×</button></div>
@@ -121,7 +147,8 @@
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260920-2"></script>
+  <script src="app.js?v=20261003-1"></script>
 </body>
 </html>
+
 

@@ -26,72 +26,87 @@ function monthEntries(){return state.entries.filter(e=>{const d=localDate(e.date
 function getFarm(id){return state.farms.find(f=>f.id===id)||{name:'Exploitation supprimée',town:'',color:'#698094'}}
 function euro(n){return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)}
 function renderStats(){const entries=monthEntries();$('#monthlyKilometres').textContent='Kilomètres du mois : '+displayKm(totalKm(entries));const hours=entries.reduce((s,e)=>s+hoursFor(e),0),days=new Set(entries.map(e=>e.date)).size;$('#statHours').textContent=displayHours(hours);$('#statRevenue').textContent=euro(hours*state.rate);$('#statDays').textContent=days;$('#statAverage').textContent=displayHours(days?hours/days:0);$('#monthPicker').textContent=`${monthNames[activeMonth.getMonth()][0].toUpperCase()+monthNames[activeMonth.getMonth()].slice(1)} ${activeMonth.getFullYear()}`}
-function renderRecent(){const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);$('#recentEntries').innerHTML=rows.length?rows.map(e=>{const d=localDate(e.date),f=getFarm(e.farmId),h=hoursFor(e);return `<article class="entry-item"><div class="entry-date"><strong>${d.getDate()}</strong><span>${shortMonths[d.getMonth()]}</span></div><div class="entry-info"><strong>${escapeHtml(f.name)}</strong><small>${escapeHtml(e.notes||formatSchedule(e))}</small><small>${displayKm(kilometresFor(e))}</small></div><div class="entry-hours"><strong>${displayHours(h)}</strong><small>${euro(h*state.rate)}</small><button class="edit-inline" data-edit="${e.id}">Modifier</button></div></article>`}).join(''):'<div class="empty">Aucune heure enregistrée pour le moment.</div>';bindEditButtons()}
+function renderRecent(){const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);$('#recentEntries').innerHTML=rows.length?rows.map(e=>{const d=localDate(e.date),f=getFarm(e.farmId),h=hoursFor(e);return `<article class="entry-item" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="recentEntriesHint"><div class="entry-date"><strong>${d.getDate()}</strong><span>${shortMonths[d.getMonth()]}</span></div><div class="entry-info"><strong>${escapeHtml(f.name)}</strong><small>${escapeHtml(e.notes||formatSchedule(e))}</small><small>${displayKm(kilometresFor(e))}</small></div><div class="entry-hours"><strong>${displayHours(h)}</strong><small>${euro(h*state.rate)}</small><button class="edit-inline" data-edit="${e.id}">Modifier</button></div></article>`}).join(''):'<div class="empty">Aucune heure enregistrée pour le moment.</div>';bindEditButtons()}
 function formatSchedule(e){const parts=[];if(e.morningStart&&e.morningEnd)parts.push(`${e.morningStart}–${e.morningEnd}`);if(e.afternoonStart&&e.afternoonEnd)parts.push(`${e.afternoonStart}–${e.afternoonEnd}`);return parts.join(' · ')||'Horaires non renseignés'}
 function renderFarms(){const totals=Object.fromEntries(state.farms.map(f=>[f.id,0]));state.entries.forEach(e=>totals[e.farmId]=(totals[e.farmId]||0)+hoursFor(e));$('#farmList').innerHTML=state.farms.map(f=>`<article class="farm-item"><span class="farm-color" style="background:${f.color}"></span><div><strong>${escapeHtml(f.name)}</strong><span>${escapeHtml(f.town||'Commune non renseignée')}</span></div><div class="farm-totals">${displayHours(totals[f.id]||0)}</div></article>`).join('')||'<div class="empty">Ajoute ta première exploitation.</div>';$('#entryFarm').innerHTML=state.farms.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
 function renderCalendar(){const y=activeMonth.getFullYear(),m=activeMonth.getMonth(),start=new Date(y,m,1),gridStart=new Date(y,m,1-((start.getDay()+6)%7));$('#calendarTitle').textContent=`${monthNames[m][0].toUpperCase()+monthNames[m].slice(1)} ${y}`;let html='';for(let i=0;i<42;i++){const d=new Date(gridStart);d.setDate(gridStart.getDate()+i);const iso=isoDate(d),has=state.entries.some(e=>e.date===iso);html+=`<button class="day ${d.getMonth()!==m?'other':''} ${iso===isoDate(new Date())?'today':''} ${has?'has-hours':''} ${iso===selectedDate?'selected':''}" data-date="${iso}">${d.getDate()}${has?'<i></i>':''}</button>`}$('#calendarGrid').innerHTML=html;$$('.day').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.date;renderCalendar();renderSelectedDay()});renderSelectedDay()}
-function renderSelectedDay(){const rows=state.entries.filter(e=>e.date===selectedDate),total=rows.reduce((s,e)=>s+hoursFor(e),0);$('#selectedDay').innerHTML=`<h2>${capitalize(formatDate(selectedDate))}${rows.length?` · ${displayHours(total)}`:''}</h2>${rows.length?rows.map(e=>`<div class="day-entry"><div><strong>${escapeHtml(getFarm(e.farmId).name)}</strong><p>${formatSchedule(e)} · ${displayKm(kilometresFor(e))}${e.notes?` · ${escapeHtml(e.notes)}`:''}</p></div><div class="entry-actions"><button data-edit="${e.id}">Modifier</button><button data-delete="${e.id}" aria-label="Supprimer">Supprimer</button></div></div>`).join(''):'<p>Aucune heure enregistrée ce jour.</p>'}`;bindEditButtons();$$('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Supprimer cette journée ?')){state.entries=state.entries.filter(e=>e.id!==b.dataset.delete);saveState();toast('Journée supprimée')}})}
+function renderSelectedDay(){const rows=state.entries.filter(e=>e.date===selectedDate),total=rows.reduce((s,e)=>s+hoursFor(e),0);$('#selectedDay').innerHTML=`<h2>${capitalize(formatDate(selectedDate))}${rows.length?` · ${displayHours(total)}`:''}</h2>${rows.length?rows.map(e=>`<div class="day-entry" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="selectedDayHint"><div><strong>${escapeHtml(getFarm(e.farmId).name)}</strong><p>${formatSchedule(e)} · ${displayKm(kilometresFor(e))}${e.notes?` · ${escapeHtml(e.notes)}`:''}</p></div><div class="entry-actions"><button data-edit="${e.id}">Modifier</button><button data-delete="${e.id}" aria-label="Supprimer">Supprimer</button></div></div>`).join(''):'<p>Aucune heure enregistrée ce jour.</p>'}`;bindEditButtons();$$('[data-delete]').forEach(b=>b.onclick=()=>requestEntryDeletion([b.dataset.delete]))}
 function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}))}
 function navigate(view){$$('.view').forEach(v=>v.classList.toggle('active',v.id===`${view}View`));$$('.nav-button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));scrollTo({top:0,behavior:'smooth'});if(view==='calendar')renderCalendar()}
 function openEntry(date=isoDate(new Date()),entryId=null){if($('#entryDialog').open)return;$('#entryForm').reset();$('#entryDate').value=date;$('#breakMinutes').value=0;$('#entryFarm').value=state.farms[0]?.id||'';if(entryId){const entry=state.entries.find(e=>e.id===entryId);if(entry){$('#entryDate').value=entry.date;$('#entryFarm').value=entry.farmId;loadEntry(entry)}else loadMatchingEntry()}else loadMatchingEntry();updateEntryTotal();showEntryDialog()}
-// Le dialogue reste ouvert pendant le zoom de fermeture.
-const entryDialogMotion={animation:null,timer:null,closing:false};
+// Animation du panneau intérieur : compatible avec les dialogues des WebView.
+const entryDialogMotion={timer:null,closing:false};
+const ENTRY_MOTION_KEY='lcmc-entry-motion-v1';
+let entryMotionPreference='auto';
+try{
+  const stored=localStorage.getItem(ENTRY_MOTION_KEY);
+  if(['auto','on','off'].includes(stored))entryMotionPreference=stored;
+}catch{}
+function entryDialogCanAnimate(){
+  return entryMotionPreference==='on'||(entryMotionPreference==='auto'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+function updateEntryMotionSetting(){
+  $('#entryMotionSelect').value=entryMotionPreference;
+  $('#entryMotionHint').textContent=entryDialogCanAnimate()?'La fenêtre s’agrandit à l’ouverture et rétrécit à la fermeture.':'Pour voir le zoom sur cet appareil, choisis « Zoom visible ».';
+}
+$('#entryMotionSelect').addEventListener('change',event=>{
+  entryMotionPreference=event.target.value;
+  try{localStorage.setItem(ENTRY_MOTION_KEY,entryMotionPreference)}catch{}
+  updateEntryMotionSetting();
+});
+updateEntryMotionSetting();
 function resetEntryDialogMotion(){
   clearTimeout(entryDialogMotion.timer);
-  entryDialogMotion.animation?.cancel();
-  entryDialogMotion.animation=null;
   entryDialogMotion.timer=null;
   entryDialogMotion.closing=false;
-  $('#entryDialog').classList.remove('is-closing');
-}
-function entryDialogCanAnimate(){
-  return typeof $('#entryDialog').animate==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dialog=$('#entryDialog');
+  dialog.classList.remove('is-opening','is-closing');
+  dialog.style.removeProperty('--entry-close-transform');
+  dialog.style.removeProperty('--entry-close-opacity');
 }
 function showEntryDialog(){
   const dialog=$('#entryDialog');
   resetEntryDialogMotion();
+  dialog.dataset.motion=entryDialogCanAnimate()?'on':'off';
+  if(dialog.dataset.motion==='on')dialog.classList.add('is-opening');
   dialog.showModal();
-  if(!entryDialogCanAnimate())return;
-  const animation=dialog.animate([
-    {opacity:0,transform:'translateY(24px) scale(.62)'},
-    {opacity:1,transform:'translateY(0) scale(1)'}
-  ],{duration:380,easing:'cubic-bezier(.2,.8,.2,1)',fill:'both'});
-  entryDialogMotion.animation=animation;
-  animation.finished.then(()=>{
-    if(entryDialogMotion.animation===animation){
-      entryDialogMotion.animation=null;
-      animation.cancel();
-    }
-  }).catch(()=>{});
+  $('#entryForm').scrollTop=0;
+  if(dialog.dataset.motion==='on')entryDialogMotion.timer=setTimeout(()=>{
+    dialog.classList.remove('is-opening');
+    entryDialogMotion.timer=null;
+  },560);
+}
+function finishEntryDialogClose(){
+  if(!entryDialogMotion.closing)return;
+  $('#entryDialog').close();
+  resetEntryDialogMotion();
 }
 function closeEntryDialog(){
   const dialog=$('#entryDialog');
   if(!dialog.open||entryDialogMotion.closing)return;
+  clearTimeout(entryDialogMotion.timer);
   entryDialogMotion.closing=true;
-  const current=getComputedStyle(dialog);
-  const from={opacity:current.opacity,transform:current.transform};
-  entryDialogMotion.animation?.cancel();
-  entryDialogMotion.animation=null;
-  if(!entryDialogCanAnimate()){
-    dialog.close();
-    resetEntryDialogMotion();
+  if(dialog.dataset.motion!=='on'){
+    finishEntryDialogClose();
     return;
   }
+  const current=getComputedStyle($('#entryForm'));
+  dialog.style.setProperty('--entry-close-transform',current.transform==='none'?'scale(1)':current.transform);
+  dialog.style.setProperty('--entry-close-opacity',current.opacity);
+  dialog.classList.remove('is-opening');
   dialog.classList.add('is-closing');
-  const animation=dialog.animate([
-    from,
-    {opacity:0,transform:'translateY(20px) scale(.62)'}
-  ],{duration:260,easing:'cubic-bezier(.4,0,.8,.2)',fill:'both'});
-  entryDialogMotion.animation=animation;
-  const finish=()=>{
-    if(entryDialogMotion.animation!==animation)return;
-    dialog.close();
-    resetEntryDialogMotion();
-  };
-  animation.finished.then(finish).catch(()=>{});
-  // Repli si la WebView interrompt une animation lors d'un changement d'état.
-  entryDialogMotion.timer=setTimeout(finish,360);
+  // Le repli garantit la fermeture même si Android interrompt l'animation.
+  entryDialogMotion.timer=setTimeout(finishEntryDialogClose,420);
 }
+$('#entryForm').addEventListener('animationend',event=>{
+  if(event.target!==$('#entryForm'))return;
+  if(event.animationName==='lcmc-entry-zoom-out')finishEntryDialogClose();
+  else if(event.animationName==='lcmc-entry-zoom-in'&&!entryDialogMotion.closing){
+    clearTimeout(entryDialogMotion.timer);
+    entryDialogMotion.timer=null;
+    $('#entryDialog').classList.remove('is-opening');
+  }
+});
 $('#entryDialog').addEventListener('cancel',event=>{
   event.preventDefault();
   closeEntryDialog();
@@ -99,6 +114,106 @@ $('#entryDialog').addEventListener('cancel',event=>{
 $('#entryDialog').addEventListener('close',()=>{
   if(!$('#entryDialog').open)resetEntryDialogMotion();
 });
+
+// Une confirmation précise les saisies concernées avant toute suppression.
+let pendingDeletionIds=[];
+function requestEntryDeletion(ids){
+  if(document.querySelector('dialog[open]'))return;
+  const wanted=new Set(ids),entries=state.entries.filter(entry=>wanted.has(entry.id));
+  if(!entries.length)return;
+  pendingDeletionIds=entries.map(entry=>entry.id);
+  $('#deleteEntryTitle').textContent=entries.length===1?'Supprimer la journée ?':'Supprimer ces '+entries.length+' saisies ?';
+  $('#deleteEntrySummary').innerHTML=entries.map(entry=>`<div class="deletion-entry"><strong>${escapeHtml(capitalize(formatDate(entry.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'})))}</strong><span>${escapeHtml(getFarm(entry.farmId).name)}</span><span>${displayHours(hoursFor(entry))} · ${displayKm(kilometresFor(entry))}</span></div>`).join('');
+  $('#deleteEntryDialog').showModal();
+}
+function cancelEntryDeletion(){
+  pendingDeletionIds=[];
+  $('#deleteEntryDialog').close();
+}
+$('#deleteEntryCancel').onclick=cancelEntryDeletion;
+$('#deleteEntryClose').onclick=cancelEntryDeletion;
+$('#deleteEntryDialog').addEventListener('cancel',()=>{pendingDeletionIds=[]});
+$('#deleteEntryDialog').addEventListener('close',()=>{if(!$('#deleteEntryDialog').open)pendingDeletionIds=[]});
+$('#deleteEntryConfirm').onclick=()=>{
+  if(!pendingDeletionIds.length)return;
+  const removedIds=new Set(pendingDeletionIds);
+  const remaining=state.entries.filter(entry=>!removedIds.has(entry.id));
+  const removedCount=state.entries.length-remaining.length;
+  pendingDeletionIds=[];
+  $('#deleteEntryDialog').close();
+  if(!removedCount)return;
+  state.entries=remaining;
+  saveState();
+  toast(removedCount===1?'Journée supprimée':'Saisies supprimées');
+};
+
+// L'appui long est annulé dès qu'un défilement, un déplacement ou un second
+// doigt est détecté. Le clic de relâchement ne peut pas valider la suppression.
+let entryPress=null,suppressEntryPressClick=false;
+function entryPressTarget(target){
+  return target instanceof Element?target.closest('[data-entry-id],.day.has-hours[data-date]'):null;
+}
+function stopEntryPress(){
+  if(!entryPress)return;
+  clearTimeout(entryPress.timer);
+  entryPress.target.classList.remove('is-pressing');
+  entryPress=null;
+}
+function idsForEntryTarget(target){
+  return target.dataset.entryId?[target.dataset.entryId]:state.entries.filter(entry=>entry.date===target.dataset.date).map(entry=>entry.id);
+}
+document.addEventListener('pointerdown',event=>{
+  stopEntryPress();
+  suppressEntryPressClick=false;
+  if(!event.isPrimary||event.button!==0||document.querySelector('dialog[open]'))return;
+  const target=entryPressTarget(event.target);
+  if(!target)return;
+  const control=event.target.closest('button,input,select,textarea,a');
+  if(control&&control!==target)return;
+  const press={target,pointerId:event.pointerId,x:event.clientX,y:event.clientY,timer:null};
+  target.classList.add('is-pressing');
+  press.timer=setTimeout(()=>{
+    if(entryPress!==press||!target.isConnected)return;
+    const ids=idsForEntryTarget(target);
+    stopEntryPress();
+    suppressEntryPressClick=true;
+    requestEntryDeletion(ids);
+  },650);
+  entryPress=press;
+},{passive:true});
+document.addEventListener('pointermove',event=>{
+  if(entryPress&&event.pointerId===entryPress.pointerId&&Math.hypot(event.clientX-entryPress.x,event.clientY-entryPress.y)>12)stopEntryPress();
+},{passive:true});
+document.addEventListener('pointerup',stopEntryPress,{passive:true});
+document.addEventListener('pointercancel',stopEntryPress,{passive:true});
+document.addEventListener('scroll',stopEntryPress,{capture:true,passive:true});
+window.addEventListener('blur',stopEntryPress);
+document.addEventListener('visibilitychange',stopEntryPress);
+document.addEventListener('click',event=>{
+  if(!suppressEntryPressClick||event.detail===0)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  suppressEntryPressClick=false;
+},true);
+document.addEventListener('contextmenu',event=>{
+  const target=entryPressTarget(event.target);
+  if(!target)return;
+  event.preventDefault();
+  const control=event.target.closest('button,input,select,textarea,a');
+  if(control&&control!==target)return;
+  // Certains Android émettent contextmenu puis pointercancel lors d'un appui long.
+  stopEntryPress();
+  suppressEntryPressClick=true;
+  requestEntryDeletion(idsForEntryTarget(target));
+});
+document.addEventListener('keydown',event=>{
+  const target=entryPressTarget(event.target);
+  if(!target||target!==event.target||!(event.key==='Delete'||(event.shiftKey&&event.key==='F10')))return;
+  event.preventDefault();
+  stopEntryPress();
+  requestEntryDeletion(idsForEntryTarget(target));
+});
+
 function loadEntry(entry){editingEntryId=entry.id;$('#morningStart').value=entry.morningStart||'';$('#morningEnd').value=entry.morningEnd||'';$('#afternoonStart').value=entry.afternoonStart||'';$('#afternoonEnd').value=entry.afternoonEnd||'';$('#breakMinutes').value=entry.breakMinutes||0;$('#entryNotes').value=entry.notes||'';$('#entryKilometres').value=entry.kilometres==null?'':kilometresFor(entry);$('#entryMode').textContent='Continuer ma journée';$('#resumeNotice').hidden=false;$('#entrySubmit').textContent='Mettre à jour la journée'}
 function loadMatchingEntry(){const match=state.entries.find(e=>e.date===$('#entryDate').value&&e.farmId===$('#entryFarm').value);if(match){loadEntry(match)}else{editingEntryId=null;$('#morningStart').value='';$('#morningEnd').value='';$('#afternoonStart').value='';$('#afternoonEnd').value='';$('#breakMinutes').value=0;$('#entryNotes').value='';$('#entryKilometres').value='';$('#entryMode').textContent='Nouvelle journée';$('#resumeNotice').hidden=true;$('#entrySubmit').textContent='Enregistrer la journée'}updateEntryTotal()}
 function bindEditButtons(){$$('[data-edit]').forEach(b=>b.onclick=()=>openEntry(state.entries.find(e=>e.id===b.dataset.edit)?.date||isoDate(new Date()),b.dataset.edit))}
@@ -281,7 +396,7 @@ calendarPdf.textContent='PDF';calendarPdf.dataset.exportPdf='';calendarPdf.oncli
 $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 26.09.2026 · synchronisation des appareils';
+versionLabel.textContent='Version 03.10.2026 · zoom et appui long';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {
@@ -512,4 +627,5 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
   ui();status(session?'Connexion à tes données…':'Connecte-toi sur tes deux appareils pour partager tes saisies.');
   if(session)schedule(0);
 })();
+
 

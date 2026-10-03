@@ -286,42 +286,93 @@ body { padding-bottom: 0; }
 #toast { bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
 #backupButton { cursor: pointer; touch-action: manipulation; position: relative; z-index: 1; }
 
-/* 29.09.2026 — retour tactile et zoom de la saisie des heures. */
+/* 03.10.2026 — zoom du panneau et suppression par appui long. */
 [data-open-entry] {
   cursor: pointer;
   touch-action: manipulation;
   transition: transform 140ms ease, filter 140ms ease;
 }
-[data-open-entry]:active {
-  transform: scale(.96);
-  filter: brightness(.94);
-}
-[data-open-entry]:focus-visible {
-  outline: 3px solid var(--blue);
-  outline-offset: -5px;
-}
-#entryDialog { border-radius: 22px; transform-origin: center center; }
-#entryDialog.is-closing { pointer-events: none; }
+[data-open-entry]:active { transform: scale(.96); filter: brightness(.94); }
+[data-open-entry]:focus-visible { outline: 3px solid var(--blue); outline-offset: -5px; }
 
-/* Le zoom du panneau est piloté par app.js pour attendre sa fermeture. */
-@media (prefers-reduced-motion: no-preference) {
-  #entryDialog[open]::backdrop {
-    animation: lcmc-entry-backdrop-in 380ms ease-out;
-  }
-  #entryDialog[open].is-closing::backdrop {
-    animation: lcmc-entry-backdrop-out 260ms ease-in forwards;
-  }
+/* Le conteneur natif reste transparent ; le formulaire entier change de taille. */
+#entryDialog {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+  max-height: none;
 }
-@keyframes lcmc-entry-backdrop-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+#entryForm {
+  background: #fff;
+  border-radius: 24px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 24px 64px rgba(8,34,50,.34);
+  transform-origin: center;
 }
-@keyframes lcmc-entry-backdrop-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+#entryDialog.is-closing { pointer-events: none; }
+#entryDialog[data-motion="on"].is-opening #entryForm {
+  animation: lcmc-entry-zoom-in 460ms cubic-bezier(.25,.65,.3,1) both;
 }
+#entryDialog[data-motion="on"].is-closing #entryForm {
+  animation: lcmc-entry-zoom-out 320ms cubic-bezier(.4,0,.8,.2) both;
+}
+#entryDialog[data-motion="on"].is-opening::backdrop {
+  animation: lcmc-entry-backdrop-in 460ms ease-out both;
+}
+#entryDialog[data-motion="on"].is-closing::backdrop {
+  animation: lcmc-entry-backdrop-out 320ms ease-in both;
+}
+@keyframes lcmc-entry-zoom-in {
+  from { opacity: .12; transform: scale(.45); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes lcmc-entry-zoom-out {
+  from { opacity: var(--entry-close-opacity, 1); transform: var(--entry-close-transform, scale(1)); }
+  to { opacity: 0; transform: scale(.45); }
+}
+@keyframes lcmc-entry-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lcmc-entry-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+
+.settings-card > .entry-motion-setting { display: grid; gap: 10px; }
+.entry-motion-setting select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f7faf5;
+  color: var(--ink);
+  font: inherit;
+}
+.entry-motion-setting small { color: var(--muted); font-size: .8rem; font-weight: 400; line-height: 1.45; }
+.entry-gesture-hint { margin: 10px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.4; }
+[data-entry-id], .day.has-hours {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y;
+}
+[data-entry-id].is-pressing, .day.has-hours.is-pressing,
+[data-entry-id]:focus-visible {
+  outline: 3px solid #759938;
+  outline-offset: 2px;
+}
+#deleteEntryDialog { border-radius: 24px; }
+.deletion-panel { padding: 22px; max-height: 90vh; overflow-y: auto; overscroll-behavior: contain; }
+.deletion-panel h2 { font-size: 1.2rem; }
+.deletion-panel .close-button { flex-shrink: 0; }
+.deletion-entry { display: grid; gap: 5px; background: #f2f6ef; border-radius: 14px; padding: 14px; margin: 12px 0; overflow-wrap: anywhere; }
+.deletion-entry span { font-size: .9rem; color: #536168; }
+.deletion-panel > p { font-size: .86rem; line-height: 1.5; color: var(--muted); }
+.deletion-actions { display: flex; gap: 12px; margin-top: 20px; }
+.deletion-actions button { flex: 1; min-height: 48px; padding: 12px; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
+#deleteEntryCancel { border: 1px solid #d3ddd0; background: #fff; color: var(--ink); }
+#deleteEntryConfirm { border: 1px solid #a83d3d; background: #a83d3d; color: #fff; }
+.deletion-actions button:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
   [data-open-entry] { transition: none; }
   [data-open-entry]:active { transform: none; }
 }
-
