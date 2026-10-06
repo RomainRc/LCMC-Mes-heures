@@ -385,3 +385,9 @@ body { padding-bottom: 0; }
   [data-open-entry] { transition: none; }
   [data-open-entry]:active { transform: none; }
 }
+
+.widget-settings { padding: 20px 15px; border-bottom: 1px solid var(--line); }
+.widget-settings h2 { margin: 0 0 12px; font-size: 1rem; }
+.widget-settings p { color: var(--muted); font-size: .82rem; line-height: 1.5; margin: 12px 0; }
+#addHomeWidget { min-height: 48px; border-radius: 12px; }
+#addHomeWidget:disabled { opacity: .5; }

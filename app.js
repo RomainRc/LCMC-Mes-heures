@@ -31,7 +31,7 @@ function formatSchedule(e){const parts=[];if(e.morningStart&&e.morningEnd)parts.
 function renderFarms(){const totals=Object.fromEntries(state.farms.map(f=>[f.id,0]));state.entries.forEach(e=>totals[e.farmId]=(totals[e.farmId]||0)+hoursFor(e));$('#farmList').innerHTML=state.farms.map(f=>`<article class="farm-item"><span class="farm-color" style="background:${f.color}"></span><div><strong>${escapeHtml(f.name)}</strong><span>${escapeHtml(f.town||'Commune non renseignée')}</span></div><div class="farm-totals">${displayHours(totals[f.id]||0)}</div></article>`).join('')||'<div class="empty">Ajoute ta première exploitation.</div>';$('#entryFarm').innerHTML=state.farms.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
 function renderCalendar(){const y=activeMonth.getFullYear(),m=activeMonth.getMonth(),start=new Date(y,m,1),gridStart=new Date(y,m,1-((start.getDay()+6)%7));$('#calendarTitle').textContent=`${monthNames[m][0].toUpperCase()+monthNames[m].slice(1)} ${y}`;let html='';for(let i=0;i<42;i++){const d=new Date(gridStart);d.setDate(gridStart.getDate()+i);const iso=isoDate(d),has=state.entries.some(e=>e.date===iso);html+=`<button class="day ${d.getMonth()!==m?'other':''} ${iso===isoDate(new Date())?'today':''} ${has?'has-hours':''} ${iso===selectedDate?'selected':''}" data-date="${iso}">${d.getDate()}${has?'<i></i>':''}</button>`}$('#calendarGrid').innerHTML=html;$$('.day').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.date;renderCalendar();renderSelectedDay()});renderSelectedDay()}
 function renderSelectedDay(){const rows=state.entries.filter(e=>e.date===selectedDate),total=rows.reduce((s,e)=>s+hoursFor(e),0);$('#selectedDay').innerHTML=`<h2>${capitalize(formatDate(selectedDate))}${rows.length?` · ${displayHours(total)}`:''}</h2>${rows.length?rows.map(e=>`<div class="day-entry" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="selectedDayHint"><div><strong>${escapeHtml(getFarm(e.farmId).name)}</strong><p>${formatSchedule(e)} · ${displayKm(kilometresFor(e))}${e.notes?` · ${escapeHtml(e.notes)}`:''}</p></div><div class="entry-actions"><button data-edit="${e.id}">Modifier</button><button data-delete="${e.id}" aria-label="Supprimer">Supprimer</button></div></div>`).join(''):'<p>Aucune heure enregistrée ce jour.</p>'}`;bindEditButtons();$$('[data-delete]').forEach(b=>b.onclick=()=>requestEntryDeletion([b.dataset.delete]))}
-function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));renderPdfMonthPicker()}
+function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));renderPdfMonthPicker();document.dispatchEvent(new Event('lcmc:state-rendered'))}
 function navigate(view){$$('.view').forEach(v=>v.classList.toggle('active',v.id===`${view}View`));$$('.nav-button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));scrollTo({top:0,behavior:'smooth'});if(view==='calendar')renderCalendar()}
 function openEntry(date=isoDate(new Date()),entryId=null){if($('#entryDialog').open)return;$('#entryForm').reset();$('#entryDate').value=date;$('#breakMinutes').value=0;$('#entryFarm').value=state.farms[0]?.id||'';if(entryId){const entry=state.entries.find(e=>e.id===entryId);if(entry){$('#entryDate').value=entry.date;$('#entryFarm').value=entry.farmId;loadEntry(entry)}else loadMatchingEntry()}else loadMatchingEntry();updateEntryTotal();showEntryDialog()}
 // Animation du panneau intérieur : compatible avec les dialogues des WebView.
@@ -451,7 +451,7 @@ $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 renderPdfMonthPicker();
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 03.10.2026 · choix du mois PDF';
+versionLabel.textContent='Version 06.10.2026 · widget du bureau';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {
@@ -683,3 +683,85 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
   if(session)schedule(0);
 })();
 
+
+
+// Le widget ne reçoit que des totaux ; les heures et la synchronisation restent dans l'application.
+function lcmcWidgetSnapshot(entries){
+  const months={};
+  for(const entry of entries){
+    if(!/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(entry.date))continue;
+    const key=entry.date.slice(0,7);
+    if(!months[key])months[key]={minutes:0,kmTenths:0};
+    months[key].minutes+=Math.round(hoursFor(entry)*60);
+    months[key].kmTenths+=Math.round(kilometresFor(entry)*10);
+  }
+  return Object.fromEntries(Object.keys(months).sort().map(key=>[key,months[key]]));
+}
+
+(() => {
+  const cap=window.Capacitor;
+  if(!cap?.isNativePlatform?.()||!cap.isPluginAvailable?.('LcmcWidget'))return;
+  const widget=cap.Plugins?.LcmcWidget||cap.registerPlugin('LcmcWidget');
+  const panel=document.createElement('section');panel.className='widget-settings';
+  panel.setAttribute('aria-labelledby','widgetSettingsTitle');
+  panel.innerHTML=`<h2 id="widgetSettingsTitle">Widget sur le bureau</h2>
+    <p>Les heures et kilomètres du mois, avec un bouton pour ajouter ta journée.</p>
+    <button id="addHomeWidget" class="primary-button full" type="button">Ajouter le widget</button>
+    <p id="homeWidgetStatus" role="status" aria-live="polite">Les totaux s’actualisent quand tu utilises l’application. Ouvre-la sur cette tablette pour récupérer les saisies du téléphone.</p>`;
+  const settings=$('#profileView .settings-card');
+  const before=settings.querySelector('.pdf-export-settings')||$('#backupButton');
+  settings.insertBefore(panel,before);
+  const button=$('#addHomeWidget'),status=$('#homeWidgetStatus');
+  let sending=false,pending=false,forceNext=false,lastSent=null;
+
+  async function publish(force=false){
+    pending=true;forceNext=forceNext||force;
+    if(sending)return;
+    sending=true;
+    try{
+      while(pending){
+        pending=false;
+        const months=lcmcWidgetSnapshot(state.entries),payload=JSON.stringify(months),mustSend=forceNext;
+        forceNext=false;
+        if(!mustSend&&payload===lastSent)continue;
+        try{await widget.updateSnapshot({months});lastSent=payload;}
+        catch{status.textContent='Les heures sont conservées dans l’application. Rouvre-la pour réessayer la mise à jour du widget.';}
+      }
+    }finally{sending=false;}
+  }
+
+  let consuming=false,consumeAgain=false;
+  async function consumeAction(){
+    consumeAgain=true;if(consuming)return;
+    consuming=true;
+    try{
+      while(consumeAgain){
+        consumeAgain=false;
+        const result=await widget.consumeAction();
+        if(!['addEntry','openHome'].includes(result?.action))continue;
+        if(document.querySelector('dialog[open]')){
+          toast('Une fenêtre est déjà ouverte : tu peux terminer ta saisie.');continue;
+        }
+        if(result.action==='addEntry')openEntry(isoDate(new Date()));
+        else{activeMonth=new Date();activeMonth.setDate(1);selectedDate=isoDate(new Date());navigate('home');renderAll();}
+      }
+    }catch{toast('Ouvre la saisie avec le bouton + de l’application.');}
+    finally{consuming=false;}
+  }
+
+  button.onclick=async()=>{
+    button.disabled=true;
+    try{
+      await publish(true);
+      const result=await widget.requestPin();
+      status.textContent=result.supported&&result.requested
+        ?'Confirme l’ajout dans la fenêtre Android. Tu pourras ensuite déplacer ou agrandir le widget.'
+        :'Maintiens un espace vide du bureau → Widgets → LCMC Mes heures, puis fais glisser le widget sur le bureau.';
+    }catch{status.textContent='Pour l’ajouter : maintiens un espace vide du bureau → Widgets → LCMC Mes heures.';}
+    finally{button.disabled=false;}
+  };
+  document.addEventListener('lcmc:state-rendered',()=>publish());
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){publish(true);consumeAction();}});
+  publish(true);
+  widget.addListener('widgetAction',consumeAction).then(consumeAction).catch(()=>{});
+})();
