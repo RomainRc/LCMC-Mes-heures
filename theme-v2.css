@@ -208,6 +208,23 @@ main { padding: 20px 16px 16px; }
 .day { border-radius: 4px; }
 .day.has-hours { background: #e9f0e3; color: #527924; }
 .day.selected { background: var(--green); color: #fff; }
+.day.is-non-working { background: #fcebed; color: #a62e3b; }
+.day.is-non-working .day-number { text-decoration: line-through; text-decoration-thickness: 2px; }
+.day.is-non-working.selected { background: #a62e3b; color: #fff; }
+.day:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.calendar-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 14px 0 6px; color: var(--muted); font-size: .76rem; }
+.calendar-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.calendar-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.legend-worked { background: #e9f0e3; border: 1px solid #719438; }
+.legend-day-off { border: 1px solid #a62e3b; background: linear-gradient(135deg, #fcebed 43%, #a62e3b 43%, #a62e3b 57%, #fcebed 57%); }
+.legend-empty { background: #fff; border: 1px solid #9aa7ab; }
+.day-off-toggle { display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 12px; margin: 14px 0 8px; border: 1px solid #d8dedb; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.day-off-toggle input { width: 23px; height: 23px; margin: 0; accent-color: #a62e3b; flex-shrink: 0; cursor: inherit; }
+.day-off-toggle.is-checked { border-color: #deaab0; background: #fcebed; color: #a62e3b; }
+.day-off-toggle.is-disabled { color: #6b7578; background: #f5f7f5; cursor: default; }
+.selected-day .day-off-help { font-size: .82rem; line-height: 1.5; }
+.day-add-hours { margin-top: 16px; }
+.day-off-notice { background: #fcebed; border-left: 3px solid #a62e3b; padding: 12px; border-radius: 8px; color: #8c2935; font-size: .85rem; line-height: 1.5; }
 .avatar { border-radius: 5px; background: var(--green); }
 .settings-card > label,
 .settings-card > button { min-height: 56px; }

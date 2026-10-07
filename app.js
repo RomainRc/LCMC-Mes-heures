@@ -1,7 +1,7 @@
 const STORE_KEY='lcdc-time-v1';
 const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const shortMonths=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
-const defaultState={rate:25,farms:[{id:'lcdc',name:'Client principal',town:'Erdre et Loire',color:'#28755b'}],entries:[]};
+const defaultState={rate:25,farms:[{id:'lcdc',name:'Client principal',town:'Erdre et Loire',color:'#28755b'}],entries:[],nonWorkingDays:[]};
 let state=loadState();let activeMonth=new Date();activeMonth.setDate(1);let selectedDate=isoDate(new Date());let installPrompt;let editingEntryId=null;
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 function kilometresFor(entry){const n=Number(String(entry.kilometres??'').replace(',','.'));return Number.isFinite(n)&&n>=0?Math.round(n*10)/10:0}
@@ -14,8 +14,40 @@ kmLabel.appendChild(kmInput);
 const kmHelp=document.createElement('small');kmHelp.textContent='Facultatif. Total pour cette journée et cette exploitation. Ne recompte pas un trajet déjà saisi pour une autre exploitation.';kmHelp.style.cssText='font-weight:400;line-height:1.4';kmLabel.appendChild(kmHelp);
 $('#entryNotes').closest('label').insertAdjacentElement('beforebegin',kmLabel);
 const kmMonthly=document.createElement('p');kmMonthly.id='monthlyKilometres';kmMonthly.style.cssText='font-weight:700;color:var(--green);margin:12px 0';$('.stats-grid').insertAdjacentElement('afterend',kmMonthly);
-function loadState(){try{return {...defaultState,...JSON.parse(localStorage.getItem(STORE_KEY)||'{}')}}catch{return structuredClone(defaultState)}}
-function saveState(){localStorage.setItem(STORE_KEY,JSON.stringify(state));renderAll()}
+function validDayDate(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&isoDate(localDate(value))===value}
+// Ces dates sont séparées des saisies : elles ne comptent jamais comme du travail.
+function normaliseNonWorkingDays(days,entries,strict=false){
+  if(days===undefined)return [];
+  if(!Array.isArray(days)){
+    if(strict)throw Error('La liste des journées non travaillées est invalide.');
+    return [];
+  }
+  if(strict&&days.some(date=>!validDayDate(date)))throw Error('Une date non travaillée est invalide.');
+  const worked=new Set(entries.map(entry=>entry.date));
+  // Une saisie d'heures est toujours conservée, même après une fusion hors ligne.
+  return [...new Set(days.filter(date=>validDayDate(date)&&!worked.has(date)))].sort();
+}
+function loadState(){
+  try{
+    const loaded={...structuredClone(defaultState),...JSON.parse(localStorage.getItem(STORE_KEY)||'{}')};
+    loaded.nonWorkingDays=normaliseNonWorkingDays(loaded.nonWorkingDays,loaded.entries);
+    return loaded;
+  }catch{return structuredClone(defaultState)}
+}
+function saveState(){state.nonWorkingDays=normaliseNonWorkingDays(state.nonWorkingDays,state.entries);localStorage.setItem(STORE_KEY,JSON.stringify(state));renderAll()}
+function isNonWorkingDay(date){return state.nonWorkingDays.includes(date)&&!state.entries.some(entry=>entry.date===date)}
+function setDayNonWorking(date,checked){
+  if(!validDayDate(date))return;
+  if(checked&&state.entries.some(entry=>entry.date===date)){
+    renderSelectedDay();toast('Des heures sont déjà enregistrées pour ce jour.');return;
+  }
+  const days=new Set(state.nonWorkingDays);
+  if(checked)days.add(date);else days.delete(date);
+  state.nonWorkingDays=[...days];
+  saveState();
+  $('#nonWorkingDay')?.focus({preventScroll:true});
+  toast(checked?'Journée marquée non travaillée':'Journée à nouveau à renseigner');
+}
 function isoDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function localDate(value){const [y,m,d]=value.split('-').map(Number);return new Date(y,m-1,d)}
 function formatDate(value,opts={weekday:'long',day:'numeric',month:'long'}){return localDate(value).toLocaleDateString('fr-FR',opts)}
@@ -29,8 +61,34 @@ function renderStats(){const entries=monthEntries();$('#monthlyKilometres').text
 function renderRecent(){const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);$('#recentEntries').innerHTML=rows.length?rows.map(e=>{const d=localDate(e.date),f=getFarm(e.farmId),h=hoursFor(e);return `<article class="entry-item" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="recentEntriesHint"><div class="entry-date"><strong>${d.getDate()}</strong><span>${shortMonths[d.getMonth()]}</span></div><div class="entry-info"><strong>${escapeHtml(f.name)}</strong><small>${escapeHtml(e.notes||formatSchedule(e))}</small><small>${displayKm(kilometresFor(e))}</small></div><div class="entry-hours"><strong>${displayHours(h)}</strong><small>${euro(h*state.rate)}</small><button class="edit-inline" data-edit="${e.id}">Modifier</button></div></article>`}).join(''):'<div class="empty">Aucune heure enregistrée pour le moment.</div>';bindEditButtons()}
 function formatSchedule(e){const parts=[];if(e.morningStart&&e.morningEnd)parts.push(`${e.morningStart}–${e.morningEnd}`);if(e.afternoonStart&&e.afternoonEnd)parts.push(`${e.afternoonStart}–${e.afternoonEnd}`);return parts.join(' · ')||'Horaires non renseignés'}
 function renderFarms(){const totals=Object.fromEntries(state.farms.map(f=>[f.id,0]));state.entries.forEach(e=>totals[e.farmId]=(totals[e.farmId]||0)+hoursFor(e));$('#farmList').innerHTML=state.farms.map(f=>`<article class="farm-item"><span class="farm-color" style="background:${f.color}"></span><div><strong>${escapeHtml(f.name)}</strong><span>${escapeHtml(f.town||'Commune non renseignée')}</span></div><div class="farm-totals">${displayHours(totals[f.id]||0)}</div></article>`).join('')||'<div class="empty">Ajoute ta première exploitation.</div>';$('#entryFarm').innerHTML=state.farms.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
-function renderCalendar(){const y=activeMonth.getFullYear(),m=activeMonth.getMonth(),start=new Date(y,m,1),gridStart=new Date(y,m,1-((start.getDay()+6)%7));$('#calendarTitle').textContent=`${monthNames[m][0].toUpperCase()+monthNames[m].slice(1)} ${y}`;let html='';for(let i=0;i<42;i++){const d=new Date(gridStart);d.setDate(gridStart.getDate()+i);const iso=isoDate(d),has=state.entries.some(e=>e.date===iso);html+=`<button class="day ${d.getMonth()!==m?'other':''} ${iso===isoDate(new Date())?'today':''} ${has?'has-hours':''} ${iso===selectedDate?'selected':''}" data-date="${iso}">${d.getDate()}${has?'<i></i>':''}</button>`}$('#calendarGrid').innerHTML=html;$$('.day').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.date;renderCalendar();renderSelectedDay()});renderSelectedDay()}
-function renderSelectedDay(){const rows=state.entries.filter(e=>e.date===selectedDate),total=rows.reduce((s,e)=>s+hoursFor(e),0);$('#selectedDay').innerHTML=`<h2>${capitalize(formatDate(selectedDate))}${rows.length?` · ${displayHours(total)}`:''}</h2>${rows.length?rows.map(e=>`<div class="day-entry" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="selectedDayHint"><div><strong>${escapeHtml(getFarm(e.farmId).name)}</strong><p>${formatSchedule(e)} · ${displayKm(kilometresFor(e))}${e.notes?` · ${escapeHtml(e.notes)}`:''}</p></div><div class="entry-actions"><button data-edit="${e.id}">Modifier</button><button data-delete="${e.id}" aria-label="Supprimer">Supprimer</button></div></div>`).join(''):'<p>Aucune heure enregistrée ce jour.</p>'}`;bindEditButtons();$$('[data-delete]').forEach(b=>b.onclick=()=>requestEntryDeletion([b.dataset.delete]))}
+function renderCalendar(){
+  const y=activeMonth.getFullYear(),m=activeMonth.getMonth(),start=new Date(y,m,1),gridStart=new Date(y,m,1-((start.getDay()+6)%7));
+  $('#calendarTitle').textContent=`${capitalize(monthNames[m])} ${y}`;
+  const worked=new Set(state.entries.map(entry=>entry.date)),daysOff=new Set(state.nonWorkingDays);
+  let html='';
+  for(let i=0;i<42;i++){
+    const d=new Date(gridStart);d.setDate(gridStart.getDate()+i);
+    const iso=isoDate(d),has=worked.has(iso),off=!has&&daysOff.has(iso),selected=iso===selectedDate;
+    const label=capitalize(formatDate(iso,{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+', '+(has?'heures enregistrées':off?'non travaillé':'à renseigner');
+    html+=`<button type="button" class="day ${d.getMonth()!==m?'other':''} ${iso===isoDate(new Date())?'today':''} ${has?'has-hours':''} ${off?'is-non-working':''} ${selected?'selected':''}" data-date="${iso}" aria-label="${escapeHtml(label)}" aria-pressed="${selected}"><span class="day-number">${d.getDate()}</span>${has?'<i aria-hidden="true"></i>':''}</button>`;
+  }
+  $('#calendarGrid').innerHTML=html;
+  $$('.day').forEach(button=>button.onclick=()=>{selectedDate=button.dataset.date;renderCalendar()});
+  renderSelectedDay();
+}
+function renderSelectedDay(){
+  const rows=state.entries.filter(entry=>entry.date===selectedDate),total=rows.reduce((sum,entry)=>sum+hoursFor(entry),0),off=isNonWorkingDay(selectedDate);
+  $('#selectedDay').innerHTML=`<h2>${capitalize(formatDate(selectedDate))}${rows.length?` · ${displayHours(total)}`:''}</h2>
+    <label class="day-off-toggle ${off?'is-checked':''} ${rows.length?'is-disabled':''}" for="nonWorkingDay">
+      <input id="nonWorkingDay" type="checkbox" aria-describedby="nonWorkingDayHelp" ${off?'checked':''} ${rows.length?'disabled':''}>
+      <span>Journée non travaillée</span>
+    </label>
+    <p id="nonWorkingDayHelp" class="day-off-help">${rows.length?'Des heures sont enregistrées. Pour marquer ce jour non travaillé, supprime d’abord les saisies de cette date.':off?'C’est noté : ce jour est barré en rouge. Décoche la case pour le remettre à renseigner.':'Aucune heure enregistrée. Coche la case si tu n’as pas travaillé ce jour-là.'}</p>
+    ${rows.length?rows.map(entry=>`<div class="day-entry" data-entry-id="${escapeHtml(entry.id)}" tabindex="0" aria-describedby="selectedDayHint"><div><strong>${escapeHtml(getFarm(entry.farmId).name)}</strong><p>${formatSchedule(entry)} · ${displayKm(kilometresFor(entry))}${entry.notes?` · ${escapeHtml(entry.notes)}`:''}</p></div><div class="entry-actions"><button data-edit="${entry.id}">Modifier</button><button data-delete="${entry.id}" aria-label="Supprimer">Supprimer</button></div></div>`).join(''):'<button type="button" class="outline-button day-add-hours" id="addSelectedDayHours">+ Ajouter des heures ce jour</button>'}`;
+  $('#nonWorkingDay').onchange=event=>setDayNonWorking(selectedDate,event.target.checked);
+  const add=$('#addSelectedDayHours');if(add)add.onclick=()=>openEntry(selectedDate);
+  bindEditButtons();$$('[data-delete]').forEach(button=>button.onclick=()=>requestEntryDeletion([button.dataset.delete]));
+}
 function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));renderPdfMonthPicker();document.dispatchEvent(new Event('lcmc:state-rendered'))}
 function navigate(view){$$('.view').forEach(v=>v.classList.toggle('active',v.id===`${view}View`));$$('.nav-button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));scrollTo({top:0,behavior:'smooth'});if(view==='calendar')renderCalendar()}
 function openEntry(date=isoDate(new Date()),entryId=null){if($('#entryDialog').open)return;$('#entryForm').reset();$('#entryDate').value=date;$('#breakMinutes').value=0;$('#entryFarm').value=state.farms[0]?.id||'';if(entryId){const entry=state.entries.find(e=>e.id===entryId);if(entry){$('#entryDate').value=entry.date;$('#entryFarm').value=entry.farmId;loadEntry(entry)}else loadMatchingEntry()}else loadMatchingEntry();updateEntryTotal();showEntryDialog()}
@@ -217,7 +275,7 @@ document.addEventListener('keydown',event=>{
 function loadEntry(entry){editingEntryId=entry.id;$('#morningStart').value=entry.morningStart||'';$('#morningEnd').value=entry.morningEnd||'';$('#afternoonStart').value=entry.afternoonStart||'';$('#afternoonEnd').value=entry.afternoonEnd||'';$('#breakMinutes').value=entry.breakMinutes||0;$('#entryNotes').value=entry.notes||'';$('#entryKilometres').value=entry.kilometres==null?'':kilometresFor(entry);$('#entryMode').textContent='Continuer ma journée';$('#resumeNotice').hidden=false;$('#entrySubmit').textContent='Mettre à jour la journée'}
 function loadMatchingEntry(){const match=state.entries.find(e=>e.date===$('#entryDate').value&&e.farmId===$('#entryFarm').value);if(match){loadEntry(match)}else{editingEntryId=null;$('#morningStart').value='';$('#morningEnd').value='';$('#afternoonStart').value='';$('#afternoonEnd').value='';$('#breakMinutes').value=0;$('#entryNotes').value='';$('#entryKilometres').value='';$('#entryMode').textContent='Nouvelle journée';$('#resumeNotice').hidden=true;$('#entrySubmit').textContent='Enregistrer la journée'}updateEntryTotal()}
 function bindEditButtons(){$$('[data-edit]').forEach(b=>b.onclick=()=>openEntry(state.entries.find(e=>e.id===b.dataset.edit)?.date||isoDate(new Date()),b.dataset.edit))}
-function updateEntryTotal(){const temp={morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:$('#breakMinutes').value};$('#entryTotal').textContent=displayHours(hoursFor(temp));if(!editingEntryId)$('#entrySubmit').textContent=temp.morningStart&&temp.morningEnd&&!temp.afternoonStart&&!temp.afternoonEnd?'Enregistrer la matinée':'Enregistrer la journée'}
+function updateEntryTotal(){$('#entryNonWorkingNotice').hidden=!isNonWorkingDay($('#entryDate').value);const temp={morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:$('#breakMinutes').value};$('#entryTotal').textContent=displayHours(hoursFor(temp));if(!editingEntryId)$('#entrySubmit').textContent=temp.morningStart&&temp.morningEnd&&!temp.afternoonStart&&!temp.afternoonEnd?'Enregistrer la matinée':'Enregistrer la journée'}
 function changeMonth(delta){activeMonth=new Date(activeMonth.getFullYear(),activeMonth.getMonth()+delta,1);selectedDate=isoDate(activeMonth);renderAll()}
 function escapeHtml(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1)}
@@ -240,7 +298,7 @@ $('#backupButton').onclick=async()=>{
   try{await download(JSON.stringify(state,null,2),`sauvegarde-lcmc-${isoDate(new Date())}.json`,'application/json')}
   finally{button.disabled=false;button.textContent='Enregistrer une sauvegarde'}
 };
-$('#restoreInput').onchange=async e=>{try{if(!e.target.files?.length)return;const data=JSON.parse(await e.target.files[0].text());if(!Array.isArray(data.entries)||!Array.isArray(data.farms))throw 0;state={...defaultState,...data};saveState();toast('Sauvegarde restaurée')}catch{toast('Fichier de sauvegarde invalide')}finally{e.target.value=''}};
+$('#restoreInput').onchange=async e=>{try{if(!e.target.files?.length)return;const data=JSON.parse(await e.target.files[0].text());if(!Array.isArray(data.entries)||!Array.isArray(data.farms))throw 0;const restored={...structuredClone(defaultState),...data};restored.nonWorkingDays=normaliseNonWorkingDays(data.nonWorkingDays,data.entries,true);state=restored;saveState();toast('Sauvegarde restaurée')}catch{toast('Fichier de sauvegarde invalide')}finally{e.target.value=''}};
 function showFileResult(message,failed=false){
   let status=document.getElementById('fileSaveResult');
   if(!status){
@@ -451,7 +509,7 @@ $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 renderPdfMonthPicker();
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 06.10.2026 · widget du bureau';
+versionLabel.textContent='Version 07.10.2026 · journées non travaillées';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {
@@ -467,7 +525,7 @@ const LcmcSyncCore = (() => {
       if(new Set(rows.map(x=>x.id)).size!==rows.length) throw Error('La sauvegarde contient des identifiants en double.');
     }
     if(entries.some(e=>!/^\d{4}-\d{2}-\d{2}$/.test(e.date))) throw Error('Une date de sauvegarde est invalide.');
-    return {rate:Math.max(0,Number(s.rate)||0),farms:farms.sort((a,b)=>a.id.localeCompare(b.id)),entries:entries.sort((a,b)=>a.id.localeCompare(b.id))};
+    return {rate:Math.max(0,Number(s.rate)||0),farms:farms.sort((a,b)=>a.id.localeCompare(b.id)),entries:entries.sort((a,b)=>a.id.localeCompare(b.id)),nonWorkingDays:normaliseNonWorkingDays(s.nonWorkingDays,entries,true)};
   }
   function alignInitial(local,remote) {
     const l=copy(local),norm=s=>s.trim().toLocaleLowerCase('fr');
@@ -515,6 +573,10 @@ const LcmcSyncCore = (() => {
         if(v!==undefined)data[key].push(v);
       }
     }
+    // Fusion par date : cocher deux jours hors ligne ne remplace pas toute la liste.
+    const days=[base,local,remote].map(s=>new Set(s.nonWorkingDays||[]));
+    data.nonWorkingDays=[...new Set(days.flatMap(set=>[...set]))].filter(date=>
+      value(...days.map(set=>set.has(date)),'Journée non travaillée '+date));
     return {data:clean(data),conflicts};
   }
   return {copy,equal,clean,merge,alignInitial};
@@ -529,9 +591,9 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
   const read=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}};
   let session=read(AUTH),meta=read(META)||{uid:null,base:null};
   let busy=false,authBusy=false,paused=false,timer=null,conflict=null,resolution=null;
-  const editing=()=>!!document.querySelector('dialog[open]') || (!!document.activeElement?.matches('input,textarea,select') && !document.activeElement.closest('#lcmcSyncPanel'));
+  const editing=()=>!!document.querySelector('dialog[open]') || (!!document.activeElement?.matches('input:not([type=checkbox]),textarea,select') && !document.activeElement.closest('#lcmcSyncPanel'));
   const panel=document.createElement('section');panel.id='lcmcSyncPanel';
-  panel.innerHTML=`<h2>Mes appareils</h2><p>Retrouve tes heures et kilomètres sur ton téléphone et ta tablette avec le même compte.</p>
+  panel.innerHTML=`<h2>Mes appareils</h2><p>Retrouve tes heures, kilomètres et journées non travaillées sur ton téléphone et ta tablette avec le même compte.</p>
   <p id="lcmcSyncStatus" role="status" aria-live="polite"></p>
   <form id="lcmcSyncForm"><label>Adresse e-mail<input id="lcmcSyncEmail" type="email" autocomplete="username" value="romain.rince1993@gmail.com" required></label>
   <label>Mot de passe<input id="lcmcSyncPassword" type="password" autocomplete="current-password" minlength="6" required></label>
@@ -603,7 +665,11 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
   }
   function remoteData(doc){
     if(doc.fields?.schema?.integerValue!=='1')throw Error('Version des données synchronisées non reconnue.');
-    return C.clean(JSON.parse(doc.fields.payload.stringValue));
+    const raw=JSON.parse(doc.fields.payload.stringValue);
+    const legacy=!Object.prototype.hasOwnProperty.call(raw,'nonWorkingDays');
+    // Une ancienne version ignore ce champ. Son absence ne vaut pas un décochage.
+    if(legacy)raw.nonWorkingDays=meta.base?.nonWorkingDays||state.nonWorkingDays||[];
+    return {data:C.clean(raw),legacy};
   }
   function showConflicts(result,remoteVersion){
     conflict={remoteVersion};resolution=null;
@@ -635,14 +701,15 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
         if(!session||session.uid!==uid||paused)return;
         if(editing()){schedule(3000);return}
         const current=C.clean(state),before=C.copy(current);
-        let local=current,base=meta.base,remote=doc?remoteData(doc):null;
+        const received=doc?remoteData(doc):null;
+        let local=current,base=meta.base,remote=received?.data||null;
         if(!base){base={rate:25,farms:[],entries:[]};if(remote)local=C.alignInitial(local,remote)}
         // Une disparition inattendue du cloud doit être examinée, pas propagée en suppression.
         if(!doc&&meta.base)throw Error('Les données en ligne sont introuvables. Tes données locales sont conservées. Vérifie la base Firebase.');
         const result=remote?C.merge(base,local,remote,resolution?.version===doc.updateTime?resolution.choice:null):{data:local,conflicts:[]};
         if(result.conflicts.length&&resolution?.version!==doc?.updateTime){showConflicts(result,doc.updateTime);return}
         const data=result.data;
-        if(!remote||!C.equal(data,remote)){
+        if(!remote||!C.equal(data,remote)||received.legacy){
           const payload=JSON.stringify(data);
           if(new TextEncoder().encode(payload).length>750000)throw Error('Ton historique dépasse la taille de cette version de synchronisation. Tes données restent locales ; une mise à niveau est nécessaire.');
           const query=doc?'currentDocument.updateTime='+encodeURIComponent(doc.updateTime):'currentDocument.exists=false';
@@ -655,7 +722,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
         state={...state,...data};
         persistMeta({...meta,base:C.copy(data),last:Date.now()});
         resolution=null;el('lcmcSyncConflict').hidden=true;
-        renderAll();status('À jour — heures et kilomètres synchronisés.');ui();return;
+        renderAll();status('À jour — heures, kilomètres et jours non travaillés synchronisés.');ui();return;
       }
       status('L’autre appareil enregistre des changements. Nouvel essai dans un instant.');schedule(3000);
     }catch(err){status(explain(err),true)}finally{busy=false;ui()}

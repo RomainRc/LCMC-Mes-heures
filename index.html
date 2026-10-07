@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css?v=20260920-2">
-  <link rel="stylesheet" href="theme-v2.css?v=20261006-1">
+  <link rel="stylesheet" href="theme-v2.css?v=20261007-1">
 </head>
 <body>
   <div class="app-shell">
@@ -70,7 +70,12 @@
           <div class="weekdays"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div>
           <div id="calendarGrid" class="calendar-grid"></div>
         </section>
-        <p class="entry-gesture-hint" id="selectedDayHint">Maintiens une journée pour la supprimer.</p>
+        <div class="calendar-legend" aria-label="Légende du calendrier">
+          <span><i class="legend-worked" aria-hidden="true"></i>Travaillé</span>
+          <span><i class="legend-day-off" aria-hidden="true"></i>Non travaillé</span>
+          <span><i class="legend-empty" aria-hidden="true"></i>À renseigner</span>
+        </div>
+        <p class="entry-gesture-hint" id="selectedDayHint">Touche une date pour la renseigner. Maintiens une journée travaillée pour la supprimer.</p>
         <section class="card selected-day" id="selectedDay"></section>
       </section>
 
@@ -110,6 +115,7 @@
     <form method="dialog" id="entryForm">
       <div class="dialog-head"><div><span class="eyebrow" id="entryMode">Nouvelle journée</span><h2>Saisir mes heures</h2></div><button class="close-button" type="button" data-close-dialog="entryDialog" aria-label="Fermer">×</button></div>
       <label>Date<input id="entryDate" type="date" required></label>
+      <p id="entryNonWorkingNotice" class="day-off-notice" hidden>Cette journée est marquée non travaillée. Enregistrer des heures remplacera ce statut.</p>
       <label>Exploitation<select id="entryFarm" required></select></label>
       <div class="resume-notice" id="resumeNotice" hidden>✓ Journée déjà commencée : tes horaires enregistrés ont été chargés.</div>
       <div class="time-section"><strong>Matin</strong><div class="time-grid"><label>Début<input id="morningStart" type="time"></label><label>Fin<input id="morningEnd" type="time"></label></div></div>
@@ -147,7 +153,7 @@
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20261006-1"></script>
+  <script src="app.js?v=20261007-1"></script>
 </body>
 </html>
 
