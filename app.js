@@ -509,7 +509,7 @@ $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 renderPdfMonthPicker();
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 07.10.2026 · journées non travaillées';
+versionLabel.textContent='Version 07.10.2026 · jours barrés en diagonale';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {

@@ -209,8 +209,19 @@ main { padding: 20px 16px 16px; }
 .day.has-hours { background: #e9f0e3; color: #527924; }
 .day.selected { background: var(--green); color: #fff; }
 .day.is-non-working { background: #fcebed; color: #a62e3b; }
-.day.is-non-working .day-number { text-decoration: line-through; text-decoration-thickness: 2px; }
-.day.is-non-working.selected { background: #a62e3b; color: #fff; }
+.day.is-non-working::after {
+  content: '';
+  position: absolute;
+  left: -6%;
+  top: 50%;
+  width: 112%;
+  height: 3px;
+  border-radius: 999px;
+  background: #c52f3f;
+  transform: translateY(-50%) rotate(-45deg);
+  pointer-events: none;
+}
+.day.is-non-working.selected { background: #f9dce1; color: #8c2935; box-shadow: inset 0 0 0 2px #a62e3b; }
 .day:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .calendar-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 14px 0 6px; color: var(--muted); font-size: .76rem; }
 .calendar-legend span { display: inline-flex; align-items: center; gap: 6px; }
