@@ -204,6 +204,12 @@ main { padding: 20px 16px 16px; }
 }
 .page-heading h1 { font-size: 1.35rem; }
 .farm-color { border-radius: 3px; }
+.farm-info { min-width: 0; overflow-wrap: anywhere; }
+.farm-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+.delete-farm-button { min-height: 44px; padding: 8px 10px; border: 1px solid #dbaab0; border-radius: 10px; background: #fff; color: #a62e3b; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.delete-farm-button:active { background: #fcebed; }
+.delete-farm-button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.deleted-farm-notice { padding: 12px; border-left: 3px solid #9a7430; border-radius: 8px; background: #fbf5e9; color: #745423; font-size: .85rem; line-height: 1.5; }
 .calendar-card { padding: 10px; }
 .day { border-radius: 4px; }
 .day.has-hours { background: #e9f0e3; color: #527924; }
@@ -397,7 +403,7 @@ body { padding-bottom: 0; }
   outline: 3px solid #759938;
   outline-offset: 2px;
 }
-#deleteEntryDialog { border-radius: 24px; }
+#deleteEntryDialog, #deleteFarmDialog { border-radius: 24px; }
 .deletion-panel { padding: 22px; max-height: 90vh; overflow-y: auto; overscroll-behavior: contain; }
 .deletion-panel h2 { font-size: 1.2rem; }
 .deletion-panel .close-button { flex-shrink: 0; }
@@ -406,8 +412,8 @@ body { padding-bottom: 0; }
 .deletion-panel > p { font-size: .86rem; line-height: 1.5; color: var(--muted); }
 .deletion-actions { display: flex; gap: 12px; margin-top: 20px; }
 .deletion-actions button { flex: 1; min-height: 48px; padding: 12px; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
-#deleteEntryCancel { border: 1px solid #d3ddd0; background: #fff; color: var(--ink); }
-#deleteEntryConfirm { border: 1px solid #a83d3d; background: #a83d3d; color: #fff; }
+#deleteEntryCancel, #deleteFarmCancel { border: 1px solid #d3ddd0; background: #fff; color: var(--ink); }
+#deleteEntryConfirm, #deleteFarmConfirm { border: 1px solid #a83d3d; background: #a83d3d; color: #fff; }
 .deletion-actions button:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
   [data-open-entry] { transition: none; }

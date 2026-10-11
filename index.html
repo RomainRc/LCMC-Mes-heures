@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css?v=20260920-2">
-  <link rel="stylesheet" href="theme-v2.css?v=20261007-2">
+  <link rel="stylesheet" href="theme-v2.css?v=20261011-1">
 </head>
 <body>
   <div class="app-shell">
@@ -97,7 +97,7 @@
           <label class="restore-label">Restaurer une sauvegarde <span>Choisir un fichier</span><input id="restoreInput" type="file" accept="application/json"></label>
           <button id="installButton" hidden>Installer l’application <b>›</b></button>
         </section>
-        <p class="privacy-note" id="appVersion">Version 06.10.2026 · widget du bureau</p>
+        <p class="privacy-note" id="appVersion">Version 11.10.2026 · suppression des clients</p>
         <p class="privacy-note">Tes données restent enregistrées sur cet appareil et l’application fonctionne même sans réseau.</p>
       </section>
     </main>
@@ -117,6 +117,7 @@
       <label>Date<input id="entryDate" type="date" required></label>
       <p id="entryNonWorkingNotice" class="day-off-notice" hidden>Cette journée est marquée non travaillée. Enregistrer des heures remplacera ce statut.</p>
       <label>Exploitation<select id="entryFarm" required></select></label>
+      <p id="deletedFarmNotice" class="deleted-farm-notice" hidden>Ce client a été supprimé de ta liste. Tu peux encore corriger ses anciennes heures.</p>
       <div class="resume-notice" id="resumeNotice" hidden>✓ Journée déjà commencée : tes horaires enregistrés ont été chargés.</div>
       <div class="time-section"><strong>Matin</strong><div class="time-grid"><label>Début<input id="morningStart" type="time"></label><label>Fin<input id="morningEnd" type="time"></label></div></div>
       <div class="time-section"><strong>Après-midi</strong><div class="time-grid"><label>Début<input id="afternoonStart" type="time"></label><label>Fin<input id="afternoonEnd" type="time"></label></div></div>
@@ -142,6 +143,22 @@
     </div>
   </dialog>
 
+  <dialog id="deleteFarmDialog" aria-labelledby="deleteFarmTitle" aria-describedby="deleteFarmNotice">
+    <div class="deletion-panel">
+      <div class="dialog-head">
+        <h2 id="deleteFarmTitle">Supprimer ce client ?</h2>
+        <button id="deleteFarmClose" class="close-button" type="button" aria-label="Fermer">×</button>
+      </div>
+      <div id="deleteFarmSummary"></div>
+      <p id="deleteFarmNotice">Ce client sera retiré de ta liste et des nouvelles saisies. Ses anciennes heures et ses kilomètres resteront dans ton historique, avec son nom.</p>
+      <p>Avec le même compte connecté sur les deux appareils, cette suppression sera aussi synchronisée.</p>
+      <div class="deletion-actions">
+        <button id="deleteFarmCancel" type="button" autofocus>Annuler</button>
+        <button id="deleteFarmConfirm" type="button">Supprimer le client</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="farmDialog">
     <form method="dialog" id="farmForm">
       <div class="dialog-head"><div><span class="eyebrow">Nouveau client</span><h2>Ajouter une exploitation</h2></div><button class="close-button" type="button" data-close-dialog="farmDialog" aria-label="Fermer">×</button></div>
@@ -153,7 +170,7 @@
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20261007-2"></script>
+  <script src="app.js?v=20261011-1"></script>
 </body>
 </html>
 
