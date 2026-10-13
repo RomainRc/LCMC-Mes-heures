@@ -1,0 +1,22 @@
+LCMC — INTERFACE ET CLIENTS — 12 OCTOBRE 2026
+
+Cette mise à jour réunit :
+- l’interface validée : terre battue, petit logo, en-tête regroupé, heures et chiffre d’affaires en premier ;
+- la correction du changement de client ou de date : horaires, pause, kilomètres et notes conservés ;
+- la suppression des clients en conservant leurs anciennes journées.
+
+INSTALLATION
+
+1. Décompresse LCMC_interface_et_clients.zip.
+2. Ouvre ton dépôt GitHub RomainRc/LCMC-Mes-heures, onglet Code.
+3. Choisis Add file puis Upload files.
+4. Ajoute TOUS les fichiers du dossier décompressé directement à la racine du dépôt, puis Commit changes sur main.
+   Les images, la police, package.json et lcmc-ui-assets.cjs font partie de cette même mise à jour.
+5. Dans Actions, ouvre la dernière fabrication « Fabriquer APK Android » et attends la coche verte.
+6. Télécharge l’archive LCMC-Mes-Heures-APK, décompresse-la, puis ouvre app-debug.apk sur ton téléphone et ta tablette.
+7. Installe en mise à jour. La clé de signature reste celle déjà configurée.
+
+Dans Profil, la version affichée sera :
+Version 12.10.2026 · nouvelle interface et correction des clients
+
+Les données déjà présentes restent dans l’application. La synchronisation utilise le même compte sur tes deux appareils.

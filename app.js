@@ -2,7 +2,7 @@ const STORE_KEY='lcdc-time-v1';
 const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const shortMonths=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const defaultState={rate:25,farms:[{id:'lcdc',name:'Client principal',town:'Erdre et Loire',color:'#28755b'}],entries:[],nonWorkingDays:[],deletedFarmIds:[]};
-let state=loadState();let activeMonth=new Date();activeMonth.setDate(1);let selectedDate=isoDate(new Date());let installPrompt;let editingEntryId=null;
+let state=loadState();let activeMonth=new Date();activeMonth.setDate(1);let selectedDate=isoDate(new Date());let installPrompt;let editingEntryId=null;let entryForceNew=false;
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 function kilometresFor(entry){const n=Number(String(entry.kilometres??'').replace(',','.'));return Number.isFinite(n)&&n>=0?Math.round(n*10)/10:0}
 function displayKm(n){return n.toLocaleString('fr-FR',{maximumFractionDigits:1})+' km'}
@@ -13,7 +13,7 @@ const kmInput=document.createElement('input');kmInput.id='entryKilometres';kmInp
 kmLabel.appendChild(kmInput);
 const kmHelp=document.createElement('small');kmHelp.textContent='Facultatif. Total pour cette journée et cette exploitation. Ne recompte pas un trajet déjà saisi pour une autre exploitation.';kmHelp.style.cssText='font-weight:400;line-height:1.4';kmLabel.appendChild(kmHelp);
 $('#entryNotes').closest('label').insertAdjacentElement('beforebegin',kmLabel);
-const kmMonthly=document.createElement('p');kmMonthly.id='monthlyKilometres';kmMonthly.style.cssText='font-weight:700;color:var(--green);margin:12px 0';$('.stats-grid').insertAdjacentElement('afterend',kmMonthly);
+const kmMonthly=$('#monthlyKilometres');
 function validDayDate(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&isoDate(localDate(value))===value}
 // Ces dates sont séparées des saisies : elles ne comptent jamais comme du travail.
 function normaliseNonWorkingDays(days,entries,strict=false){
@@ -70,16 +70,30 @@ function displayHours(n){const h=Math.floor(n),m=Math.round((n-h)*60);return m?`
 function monthEntries(){return state.entries.filter(e=>{const d=localDate(e.date);return d.getFullYear()===activeMonth.getFullYear()&&d.getMonth()===activeMonth.getMonth()})}
 function getFarm(id){return state.farms.find(f=>f.id===id)||{name:'Exploitation supprimée',town:'',color:'#698094'}}
 function euro(n){return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)}
-function renderStats(){const entries=monthEntries();$('#monthlyKilometres').textContent='Kilomètres du mois : '+displayKm(totalKm(entries));const hours=entries.reduce((s,e)=>s+hoursFor(e),0),days=new Set(entries.map(e=>e.date)).size;$('#statHours').textContent=displayHours(hours);$('#statRevenue').textContent=euro(hours*state.rate);$('#statDays').textContent=days;$('#statAverage').textContent=displayHours(days?hours/days:0);$('#monthPicker').textContent=`${monthNames[activeMonth.getMonth()][0].toUpperCase()+monthNames[activeMonth.getMonth()].slice(1)} ${activeMonth.getFullYear()}`}
+function renderStats(){
+  const entries=monthEntries(),hours=entries.reduce((sum,entry)=>sum+hoursFor(entry),0),days=new Set(entries.map(entry=>entry.date)).size;
+  kmMonthly.textContent=displayKm(totalKm(entries));
+  $('#statHours').textContent=displayHours(hours);$('#statRevenue').textContent=euro(hours*state.rate);
+  $('#statDays').textContent=days;$('#statDaysUnit').textContent=days===1?'jour':'jours';$('#statDaysLabel').textContent=days===1?'travaillé':'travaillés';
+  $('#statAverage').textContent=displayHours(days?hours/days:0);
+  $('#monthPicker').textContent=`${capitalize(monthNames[activeMonth.getMonth()])} ${activeMonth.getFullYear()}`;
+  ['statHours','statRevenue','monthlyKilometres','statAverage'].forEach(id=>$(`#${id}`).classList.toggle('stat-value-long',$(`#${id}`).textContent.length>8));
+}
+function renderHomeDayOff(){
+  const today=isoDate(new Date()),worked=state.entries.some(entry=>entry.date===today),off=isNonWorkingDay(today),button=$('#homeDayOff');
+  button.disabled=worked;button.classList.toggle('is-day-off',off);button.setAttribute('aria-pressed',String(off));
+  button.querySelector('span').textContent=off?'Non travaillé ✓':'Non travaillé';
+  button.title=worked?'Des heures sont déjà enregistrées aujourd’hui. Tu peux les modifier dans le calendrier.':off?'Retirer le statut non travaillé':'Marquer aujourd’hui non travaillé';
+}
 function renderRecent(){const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);$('#recentEntries').innerHTML=rows.length?rows.map(e=>{const d=localDate(e.date),f=getFarm(e.farmId),h=hoursFor(e);return `<article class="entry-item" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="recentEntriesHint"><div class="entry-date"><strong>${d.getDate()}</strong><span>${shortMonths[d.getMonth()]}</span></div><div class="entry-info"><strong>${escapeHtml(f.name)}</strong><small>${escapeHtml(e.notes||formatSchedule(e))}</small><small>${displayKm(kilometresFor(e))}</small></div><div class="entry-hours"><strong>${displayHours(h)}</strong><small>${euro(h*state.rate)}</small><button class="edit-inline" data-edit="${e.id}">Modifier</button></div></article>`}).join(''):'<div class="empty">Aucune heure enregistrée pour le moment.</div>';bindEditButtons()}
 function formatSchedule(e){const parts=[];if(e.morningStart&&e.morningEnd)parts.push(`${e.morningStart}–${e.morningEnd}`);if(e.afternoonStart&&e.afternoonEnd)parts.push(`${e.afternoonStart}–${e.afternoonEnd}`);return parts.join(' · ')||'Horaires non renseignés'}
 function renderEntryFarmOptions(selectedId='',historicalEntry=null){
   const farms=activeFarms();
-  const historical=historicalEntry&&historicalEntry.farmId===selectedId&&!farms.some(farm=>farm.id===selectedId);
-  if(historical)farms.push({id:selectedId,...getFarm(selectedId)});
-  $('#entryFarm').innerHTML='<option value="">Choisir un client</option>'+farms.map(farm=>`<option value="${escapeHtml(farm.id)}">${escapeHtml(farm.name)}${historical&&farm.id===selectedId?' (client supprimé)':''}</option>`).join('');
+  const historical=historicalEntry&&!farms.some(farm=>farm.id===historicalEntry.farmId);
+  if(historical)farms.push({id:historicalEntry.farmId,...getFarm(historicalEntry.farmId)});
+  $('#entryFarm').innerHTML='<option value="">Choisir un client</option>'+farms.map(farm=>`<option value="${escapeHtml(farm.id)}">${escapeHtml(farm.name)}${historical&&farm.id===historicalEntry.farmId?' (client supprimé)':''}</option>`).join('');
   $('#entryFarm').value=farms.some(farm=>farm.id===selectedId)?selectedId:'';
-  $('#deletedFarmNotice').hidden=!historical;
+  $('#deletedFarmNotice').hidden=!(historical&&selectedId===historicalEntry.farmId);
 }
 function renderFarms(){
   const farms=activeFarms(),totals=Object.fromEntries(state.farms.map(farm=>[farm.id,0]));
@@ -142,13 +156,13 @@ function renderSelectedDay(){
   const add=$('#addSelectedDayHours');if(add)add.onclick=()=>openEntry(selectedDate);
   bindEditButtons();$$('[data-delete]').forEach(button=>button.onclick=()=>requestEntryDeletion([button.dataset.delete]));
 }
-function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));renderPdfMonthPicker();document.dispatchEvent(new Event('lcmc:state-rendered'))}
-function navigate(view){$$('.view').forEach(v=>v.classList.toggle('active',v.id===`${view}View`));$$('.nav-button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));scrollTo({top:0,behavior:'smooth'});if(view==='calendar')renderCalendar()}
+function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();renderHomeDayOff();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));renderPdfMonthPicker();document.dispatchEvent(new Event('lcmc:state-rendered'))}
+function navigate(view){$$('.view').forEach(v=>v.classList.toggle('active',v.id===`${view}View`));$$('.nav-button').forEach(button=>{const active=button.dataset.view===view;button.classList.toggle('active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});scrollTo({top:0,behavior:'smooth'});if(view==='calendar')renderCalendar()}
 function openEntry(date=isoDate(new Date()),entryId=null){
   if(document.querySelector('dialog[open]'))return;
   const entry=state.entries.find(item=>item.id===entryId),farms=activeFarms();
   if(!entry&&!farms.length){navigate('farms');$('#farmDialog').showModal();toast('Ajoute d’abord un client');return;}
-  $('#entryForm').reset();editingEntryId=null;
+  $('#entryForm').reset();editingEntryId=null;entryForceNew=false;
   $('#entryDate').value=entry?.date||date;$('#breakMinutes').value=0;
   if(entry){renderEntryFarmOptions(entry.farmId,entry);loadEntry(entry)}
   else{renderEntryFarmOptions(farms[0].id);loadMatchingEntry()}
@@ -334,8 +348,36 @@ document.addEventListener('keydown',event=>{
   requestEntryDeletion(idsForEntryTarget(target));
 });
 
-function loadEntry(entry){editingEntryId=entry.id;$('#morningStart').value=entry.morningStart||'';$('#morningEnd').value=entry.morningEnd||'';$('#afternoonStart').value=entry.afternoonStart||'';$('#afternoonEnd').value=entry.afternoonEnd||'';$('#breakMinutes').value=entry.breakMinutes||0;$('#entryNotes').value=entry.notes||'';$('#entryKilometres').value=entry.kilometres==null?'':kilometresFor(entry);$('#entryMode').textContent='Continuer ma journée';$('#resumeNotice').hidden=false;$('#entrySubmit').textContent='Mettre à jour la journée'}
-function loadMatchingEntry(){const match=state.entries.find(e=>e.date===$('#entryDate').value&&e.farmId===$('#entryFarm').value);if(match){renderEntryFarmOptions(match.farmId,match);loadEntry(match)}else{editingEntryId=null;renderEntryFarmOptions($('#entryFarm').value);$('#morningStart').value='';$('#morningEnd').value='';$('#afternoonStart').value='';$('#afternoonEnd').value='';$('#breakMinutes').value=0;$('#entryNotes').value='';$('#entryKilometres').value='';$('#entryMode').textContent='Nouvelle journée';$('#resumeNotice').hidden=true;$('#entrySubmit').textContent='Enregistrer la journée'}updateEntryTotal()}
+function entryDraftHasContent(){
+  return ['morningStart','morningEnd','afternoonStart','afternoonEnd','entryNotes','entryKilometres'].some(id=>$(`#${id}`).value.trim()!=='')||Number($('#breakMinutes').value)!==0;
+}
+function renderEntryContext(){
+  const entry=state.entries.find(item=>item.id===editingEntryId);
+  renderEntryFarmOptions($('#entryFarm').value,entry);
+  $('#entryMode').textContent=entry?'Continuer ma journée':'Nouvelle journée';
+  $('#resumeNotice').hidden=!entry;
+  $('#entryNewButton').hidden=!entry;
+  $('#entrySubmit').textContent=entry?'Mettre à jour la journée':'Enregistrer la journée';
+  const others=state.entries.filter(item=>item.id!==editingEntryId&&item.date===$('#entryDate').value&&item.farmId===$('#entryFarm').value);
+  $('#entryOtherNotice').hidden=!others.length;
+  $('#entryOtherNotice').textContent=others.length>1?'D’autres saisies existent pour ce client à cette date. Elles seront conservées séparément.':'Une autre saisie existe pour ce client à cette date. Elle sera conservée séparément.';
+}
+function loadEntry(entry){editingEntryId=entry.id;$('#morningStart').value=entry.morningStart||'';$('#morningEnd').value=entry.morningEnd||'';$('#afternoonStart').value=entry.afternoonStart||'';$('#afternoonEnd').value=entry.afternoonEnd||'';$('#breakMinutes').value=entry.breakMinutes||0;$('#entryNotes').value=entry.notes||'';$('#entryKilometres').value=entry.kilometres==null?'':kilometresFor(entry);renderEntryContext()}
+function loadMatchingEntry(){
+  // Un changement de client ou de date corrige la saisie affichée, sans vider ses champs ni changer son identifiant.
+  if(!editingEntryId&&!entryForceNew&&!entryDraftHasContent()){
+    const matches=state.entries.filter(entry=>entry.date===$('#entryDate').value&&entry.farmId===$('#entryFarm').value);
+    if(matches.length===1)loadEntry(matches[0]);
+  }
+  renderEntryContext();updateEntryTotal();
+}
+function startAnotherEntry(){
+  const date=$('#entryDate').value,selectedId=$('#entryFarm').value;
+  $('#entryForm').reset();editingEntryId=null;entryForceNew=true;
+  $('#entryDate').value=date;$('#breakMinutes').value=0;
+  renderEntryFarmOptions(activeFarms().some(farm=>farm.id===selectedId)?selectedId:activeFarms()[0]?.id||'');
+  renderEntryContext();updateEntryTotal();$('#entryFarm').focus();
+}
 function bindEditButtons(){$$('[data-edit]').forEach(b=>b.onclick=()=>openEntry(state.entries.find(e=>e.id===b.dataset.edit)?.date||isoDate(new Date()),b.dataset.edit))}
 function updateEntryTotal(){$('#entryNonWorkingNotice').hidden=!isNonWorkingDay($('#entryDate').value);const temp={morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:$('#breakMinutes').value};$('#entryTotal').textContent=displayHours(hoursFor(temp));if(!editingEntryId)$('#entrySubmit').textContent=temp.morningStart&&temp.morningEnd&&!temp.afternoonStart&&!temp.afternoonEnd?'Enregistrer la matinée':'Enregistrer la journée'}
 function changeMonth(delta){activeMonth=new Date(activeMonth.getFullYear(),activeMonth.getMonth()+delta,1);selectedDate=isoDate(activeMonth);renderAll()}
@@ -345,8 +387,12 @@ function toast(message){const t=$('#toast');t.textContent=message;t.classList.ad
 $$('[data-nav]').forEach(b=>b.onclick=()=>navigate(b.dataset.nav));$$('.nav-button').forEach(b=>b.onclick=()=>navigate(b.dataset.view));$$('[data-open-entry]').forEach(b=>b.onclick=()=>openEntry());
 $$('[data-close-dialog]').forEach(b=>b.onclick=()=>b.dataset.closeDialog==='entryDialog'?closeEntryDialog():document.getElementById(b.dataset.closeDialog).close());
 $('#prevMonth').onclick=$('#calPrev').onclick=()=>changeMonth(-1);$('#nextMonth').onclick=$('#calNext').onclick=()=>changeMonth(1);$('#menuButton').onclick=()=>navigate('profile');$('#addFarmButton').onclick=()=>$('#farmDialog').showModal();
+$('#networkBadge').onclick=()=>{navigate('profile');$('#lcmcSyncPanel')?.scrollIntoView({block:'start',behavior:'smooth'})};
+$('#homeDayOff').onclick=()=>{if(!$('#homeDayOff').disabled){const today=isoDate(new Date());setDayNonWorking(today,!isNonWorkingDay(today))}};
+$('#homePdfButton').onclick=()=>{navigate('profile');renderPdfMonthPicker();$('#pdfMonthSelect').value=isoDate(activeMonth).slice(0,7);renderPdfMonthPicker();$('#pdfMonthSelect').scrollIntoView({block:'center',behavior:'smooth'});$('#pdfMonthSelect').focus({preventScroll:true})};
 ['morningStart','morningEnd','afternoonStart','afternoonEnd','breakMinutes'].forEach(id=>$(`#${id}`).addEventListener('input',updateEntryTotal));
 $('#entryDate').addEventListener('change',loadMatchingEntry);$('#entryFarm').addEventListener('change',loadMatchingEntry);
+$('#entryNewButton').addEventListener('click',startAnotherEntry);
 $('#entryForm').addEventListener('submit',e=>{e.preventDefault();if(entryDialogMotion.closing)return;const previous=state.entries.find(item=>item.id===editingEntryId),selectedFarmId=$('#entryFarm').value;if(!selectedFarmId||(!activeFarms().some(farm=>farm.id===selectedFarmId)&&previous?.farmId!==selectedFarmId)){toast('Choisis un client actif pour cette saisie');return}const rawKm=$('#entryKilometres').value.trim().replace(',','.');const km=rawKm===''?0:Number(rawKm);if(!Number.isFinite(km)||km<0||!/^\d*(?:\.\d*)?$/.test(rawKm)){toast('Renseigne un nombre de kilomètres positif, par exemple 24,5');return}const entry={kilometres:Math.round(km*10)/10,id:editingEntryId||crypto.randomUUID(),date:$('#entryDate').value,farmId:$('#entryFarm').value,morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:Number($('#breakMinutes').value)||0,notes:$('#entryNotes').value.trim()};if(Boolean(entry.morningStart)!==Boolean(entry.morningEnd)){toast('Complète le début et la fin du matin');return}if(Boolean(entry.afternoonStart)!==Boolean(entry.afternoonEnd)){toast('Complète le début et la fin de l’après-midi');return}if(hoursFor(entry)<=0){toast('Renseigne au moins une plage horaire');return}const index=state.entries.findIndex(item=>item.id===editingEntryId);if(index>=0)state.entries[index]=entry;else state.entries.push(entry);const updated=index>=0;editingEntryId=null;selectedDate=entry.date;activeMonth=localDate(entry.date);activeMonth.setDate(1);saveState();closeEntryDialog();toast(updated?'Journée mise à jour':'Horaires enregistrés')});
 $('#farmForm').addEventListener('submit',e=>{e.preventDefault();state.farms.push({id:crypto.randomUUID(),name:$('#farmName').value.trim(),town:$('#farmTown').value.trim(),color:$('#farmColor').value});saveState();$('#farmDialog').close();e.target.reset();toast('Exploitation ajoutée')});
 $('#rateInput').onchange=()=>{state.rate=Math.max(0,Number($('#rateInput').value)||0);saveState();toast('Tarif mis à jour')};
@@ -401,7 +447,7 @@ async function download(content,name,type){
     return false;
   }
 }
-function updateNetwork(){const el=$('#networkStatus');el.textContent=navigator.onLine?'● En ligne':'● Hors ligne prêt';el.classList.toggle('online',navigator.onLine)}window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);updateNetwork();
+function updateNetwork(){const el=$('#networkStatus'),online=navigator.onLine,badge=$('#networkBadge');el.textContent=online?'En ligne':'Hors ligne — saisies conservées';el.classList.toggle('online',online);badge.classList.toggle('is-offline',!online);if(!online)badge.classList.remove('is-synced');badge.title=online?'Connexion et synchronisation des appareils':'Hors ligne — tes saisies restent sur cet appareil'}window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);updateNetwork();
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('#installButton').hidden=false});$('#installButton').onclick=async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('#installButton').hidden=true}};
 if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'add_work_entry',title:'Ajouter une journée de travail',description:'Enregistre des horaires de travail dans l’application LCMC.',inputSchema:{type:'object',properties:{date:{type:'string'},farmId:{type:'string'},morningStart:{type:'string'},morningEnd:{type:'string'},afternoonStart:{type:'string'},afternoonEnd:{type:'string'},breakMinutes:{type:'number'},notes:{type:'string'}},required:['date','farmId'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){const e={id:crypto.randomUUID(),morningStart:'',morningEnd:'',afternoonStart:'',afternoonEnd:'',breakMinutes:0,notes:'',...input};if(!activeFarms().some(f=>f.id===e.farmId)||hoursFor(e)<=0)throw new Error('Exploitation ou horaires invalides');state.entries.push(e);saveState();return{id:e.id,totalHours:hoursFor(e)}}}).catch?.(()=>{})}
@@ -571,7 +617,7 @@ $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 renderPdfMonthPicker();
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 11.10.2026 · suppression des clients';
+versionLabel.textContent='Version 12.10.2026 · nouvelle interface et correction des clients';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {
@@ -672,7 +718,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
   const css=document.createElement('style');css.textContent=`#lcmcSyncPanel{background:#fff;border:1px solid #dde4e1;border-radius:12px;padding:20px;margin:20px 0;overflow-wrap:anywhere}#lcmcSyncPanel h2{margin:0 0 12px}#lcmcSyncPanel p{line-height:1.45;margin:10px 0}#lcmcSyncPanel label{display:grid;gap:7px;margin:14px 0;font-weight:600}#lcmcSyncPanel input{width:100%;min-width:0;box-sizing:border-box;padding:12px;border:1px solid #ccd6d3;border-radius:8px;font:inherit}#lcmcSyncPanel button{font:inherit;padding:12px;border:1px solid #ccd6d3;border-radius:8px;background:#f2f6ef;color:#355521;cursor:pointer;white-space:normal}#lcmcSyncPanel button:disabled{opacity:.5}#lcmcSyncPanel [hidden]{display:none!important}.lcmc-sync-actions{display:flex;gap:10px;flex-wrap:wrap}.lcmc-sync-actions button{flex:1;min-width:140px}#lcmcSyncStatus{font-weight:700;color:#355521}#lcmcSyncConflict{border-top:2px solid #cc9d36;margin-top:20px;padding-top:12px}#lcmcSyncConflictList p{font-size:14px;background:#fbf6ea;padding:10px}`;
   document.head.appendChild(css);document.querySelector('#profileView').appendChild(panel);
   const el=id=>document.getElementById(id);
-  function status(text,error=false){el('lcmcSyncStatus').textContent=text;el('lcmcSyncStatus').style.color=error?'#a63f3f':'#355521'}
+  function status(text,error=false){el('lcmcSyncStatus').textContent=text;el('lcmcSyncStatus').style.color=error?'#a63f3f':'#355521';const badge=el('networkBadge');badge.title=text;badge.classList.toggle('is-synced',!error&&navigator.onLine&&text.startsWith('À jour'));badge.classList.toggle('has-error',error)}
   function ui(){
     el('lcmcSyncForm').hidden=!!session;el('lcmcSyncConnected').hidden=!session;
     el('lcmcSyncAccount').textContent=session?'Connecté : '+session.email:'';
@@ -903,3 +949,4 @@ function lcmcWidgetSnapshot(entries){
   publish(true);
   widget.addListener('widgetAction',consumeAction).then(consumeAction).catch(()=>{});
 })();
+

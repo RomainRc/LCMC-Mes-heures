@@ -1,5 +1,16 @@
-const CACHE='lcmc-heures-v6';
-const ASSETS=['./','index.html','styles.css','theme-v2.css','app.js','manifest.webmanifest','assets/farm-header-mobile.png','assets/farm-banner-tablet.png'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return response}).catch(()=>caches.match(e.request).then(cached=>cached||caches.match('index.html'))))});
+const CACHE='lcmc-heures-interface-20261012-2';
+const ASSETS=['./','index.html','styles.css?v=20260920-2','theme-v2.css?v=20261012-2','lcmc-ui.css?v=20261012-2','app.js?v=20261012-2','manifest.webmanifest','lcmc-logo.png','lcmc-hero.png','lcmc-earth.png','lcmc-nunito.woff2'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('lcmc-heures-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;
+  event.respondWith(fetch(event.request).then(response=>{
+    if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(event.request,copy)));}
+    return response;
+  }).catch(async()=>{
+    const cached=await caches.match(event.request,{ignoreSearch:true});
+    if(cached)return cached;
+    if(event.request.mode==='navigate')return await caches.match('index.html')||Response.error();
+    return Response.error();
+  }));
+});

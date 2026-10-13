@@ -3,53 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#6b982f">
+  <meta name="theme-color" content="#c9874a">
   <meta name="description" content="Suivi des heures LCMC – Le Coup de Main du Coin Erdre et Loire">
   <title>Mes heures · LCMC</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css?v=20260920-2">
-  <link rel="stylesheet" href="theme-v2.css?v=20261011-1">
+  <link rel="stylesheet" href="theme-v2.css?v=20261012-2">
+  <link rel="stylesheet" href="lcmc-ui.css?v=20261012-2">
 </head>
 <body>
+  <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <symbol id="ui-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></symbol>
+      <symbol id="ui-coins" viewBox="0 0 24 24"><ellipse cx="15" cy="5" rx="6" ry="3"/><path d="M9 5v5c0 1.7 2.7 3 6 3s6-1.3 6-3V5M12 13v4c4 1 9-.4 9-3v-4"/><ellipse cx="7" cy="14" rx="5" ry="3"/><path d="M2 14v5c0 1.7 2.2 3 5 3s5-1.3 5-3v-5"/></symbol>
+      <symbol id="ui-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+      <symbol id="ui-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2"/></symbol>
+      <symbol id="ui-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z"/></symbol>
+      <symbol id="ui-clients" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3ZM17 3a4 4 0 0 1 0 8m3 10v-3a7 7 0 0 0-3-5"/></symbol>
+      <symbol id="ui-user" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></symbol>
+      <symbol id="ui-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+      <symbol id="ui-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+      <symbol id="ui-off" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></symbol>
+      <symbol id="ui-pdf" viewBox="0 0 24 24"><path d="M14 2H5v20h14V7ZM14 2v5h5"/><path d="M8 13h8M8 17h5"/></symbol>
+    </defs>
+  </svg>
   <div class="app-shell">
-    <header class="farm-header">
-      <div class="professional-bar">
-        <button class="menu-button" id="menuButton" aria-label="Ouvrir les réglages">☰</button>
-        <div class="brand">
-          <div class="brand-mark"><span>LC</span><b>MC</b></div>
-          <div><strong>Le Coup de Main du Coin</strong><small>Erdre et Loire</small></div>
+    <header class="farm-header compact-header">
+      <div class="header-toolbar">
+        <button class="header-brand" id="menuButton" type="button" aria-label="LCMC Mes heures — ouvrir les réglages">
+          <img src="lcmc-logo.png" alt="LCMC" width="64" height="64">
+          <span>Mes heures</span>
+        </button>
+        <div class="header-period" aria-label="Mois affiché">
+          <button class="month-arrow previous" id="prevMonth" type="button" aria-label="Mois précédent"><svg class="ui-icon" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
+          <strong id="monthPicker" aria-live="polite"></strong>
+          <button class="month-arrow" id="nextMonth" type="button" aria-label="Mois suivant"><svg class="ui-icon" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
         </div>
-        <span class="offline-pill" id="networkStatus">● Hors ligne prêt</span>
+        <button class="network-badge" id="networkBadge" type="button" aria-label="Connexion et synchronisation">
+          <svg class="ui-icon" viewBox="0 0 32 26" aria-hidden="true"><path d="M9 22h16a6 6 0 0 0 0-12 9 9 0 0 0-17-3 7.5 7.5 0 0 0 1 15Z"/><path class="cloud-check" d="m12 14 3 3 6-7"/><path class="cloud-pending" d="M16 18V10m-3 3 3-3 3 3"/></svg>
+          <span class="sr-only" id="networkStatus">Hors ligne prêt</span>
+        </button>
       </div>
-      <div class="farm-visual">
-        <picture>
-          <source media="(min-width: 700px)" srcset="assets/farm-banner-tablet.jpg">
-          <img src="assets/farm-header-mobile.jpg" alt="Vache Prim’Holstein, poule et tracteur vert dans la campagne d’Erdre et Loire">
-        </picture>
-        <div class="visual-label"><span>MON ACTIVITÉ</span><strong>Mes heures</strong></div>
-      </div>
+      <img class="header-art" src="lcmc-hero.png" alt="Vache Prim’Holstein, poule, cochon et tracteur vert" width="2048" height="768">
     </header>
 
     <main id="appMain">
       <section class="view active" id="homeView">
-        <div class="period-row">
-          <button class="icon-button" id="prevMonth" aria-label="Mois précédent">‹</button>
-          <button class="period-button" id="monthPicker"></button>
-          <button class="icon-button" id="nextMonth" aria-label="Mois suivant">›</button>
-        </div>
-
         <div class="stats-grid">
-          <article class="stat blue"><span>Heures</span><strong id="statHours">0 h</strong></article>
-          <article class="stat gold"><span>Chiffre d’affaires</span><strong id="statRevenue">0 €</strong></article>
-          <article class="stat green"><span>Jours travaillés</span><strong id="statDays">0</strong></article>
-          <article class="stat purple"><span>Moyenne / jour</span><strong id="statAverage">0 h</strong></article>
+          <article class="stat stat-primary hours-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-clock"/></svg><strong id="statHours">0 h</strong><span>Heures du mois</span></article>
+          <article class="stat stat-primary revenue-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-coins"/></svg><strong id="statRevenue">0 €</strong><span>Chiffre d’affaires</span></article>
+          <article class="stat stat-secondary kilometres-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-pin"/></svg><div><strong id="monthlyKilometres">0 km</strong><span>Kilomètres</span></div></article>
+          <article class="stat stat-secondary average-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-clock"/></svg><div><strong id="statAverage">0 h</strong><span>Moyenne / jour</span></div></article>
         </div>
-
+        <div class="worked-days"><svg class="ui-icon" aria-hidden="true"><use href="#ui-calendar"/></svg><strong><span id="statDays">0</span> <span id="statDaysUnit">jours</span></strong><span id="statDaysLabel">travaillés</span></div>
         <section class="card quick-card action-panel">
-          <div><span class="eyebrow">Aujourd’hui</span><h1 id="todayLabel"></h1></div>
-          <button class="primary-button" data-open-entry>+ Ajouter mes heures</button>
+          <h1 class="today-heading"><svg class="ui-icon" aria-hidden="true"><use href="#ui-calendar"/></svg><span id="todayLabel"></span></h1>
+          <button class="primary-button home-add-button" type="button" data-open-entry><span class="action-symbol"><svg class="ui-icon" aria-hidden="true"><use href="#ui-plus"/></svg></span><span>Ajouter mes heures</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
+          <button class="home-day-off" id="homeDayOff" type="button" aria-pressed="false"><svg class="ui-icon" aria-hidden="true"><use href="#ui-off"/></svg><span>Non travaillé</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
         </section>
+        <button class="home-pdf-button" id="homePdfButton" type="button" data-export-pdf><svg class="ui-icon" aria-hidden="true"><use href="#ui-pdf"/></svg><span>Exporter le mois</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
 
         <section class="section-block">
           <div class="section-heading"><h2>Dernières journées</h2><button class="text-button" data-nav="calendar">Tout voir</button></div>
@@ -97,17 +110,16 @@
           <label class="restore-label">Restaurer une sauvegarde <span>Choisir un fichier</span><input id="restoreInput" type="file" accept="application/json"></label>
           <button id="installButton" hidden>Installer l’application <b>›</b></button>
         </section>
-        <p class="privacy-note" id="appVersion">Version 11.10.2026 · suppression des clients</p>
+        <p class="privacy-note" id="appVersion">Version 12.10.2026 · nouvelle interface et correction des clients</p>
         <p class="privacy-note">Tes données restent enregistrées sur cet appareil et l’application fonctionne même sans réseau.</p>
       </section>
     </main>
 
     <nav class="bottom-nav" aria-label="Navigation principale">
-      <button class="nav-button active" data-view="home"><span>⌂</span>Accueil</button>
-      <button class="nav-button" data-view="farms"><span>♜</span>Exploitations</button>
-      <button class="add-main" data-open-entry aria-label="Ajouter des heures">+</button>
-      <button class="nav-button" data-view="calendar"><span>▦</span>Calendrier</button>
-      <button class="nav-button" data-view="profile"><span>●</span>Profil</button>
+      <button class="nav-button active" data-view="home" type="button" aria-current="page"><svg class="ui-icon" aria-hidden="true"><use href="#ui-home"/></svg><span>Accueil</span></button>
+      <button class="nav-button" data-view="farms" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#ui-clients"/></svg><span>Clients</span></button>
+      <button class="nav-button" data-view="calendar" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#ui-calendar"/></svg><span>Calendrier</span></button>
+      <button class="nav-button" data-view="profile" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#ui-user"/></svg><span>Profil</span></button>
     </nav>
   </div>
 
@@ -118,7 +130,9 @@
       <p id="entryNonWorkingNotice" class="day-off-notice" hidden>Cette journée est marquée non travaillée. Enregistrer des heures remplacera ce statut.</p>
       <label>Exploitation<select id="entryFarm" required></select></label>
       <p id="deletedFarmNotice" class="deleted-farm-notice" hidden>Ce client a été supprimé de ta liste. Tu peux encore corriger ses anciennes heures.</p>
-      <div class="resume-notice" id="resumeNotice" hidden>✓ Journée déjà commencée : tes horaires enregistrés ont été chargés.</div>
+      <div class="resume-notice" id="resumeNotice" hidden>✓ Saisie chargée : tu peux corriger le client ou la date sans perdre tes horaires, tes kilomètres ni tes notes.</div>
+      <button class="text-button" id="entryNewButton" type="button" hidden>Commencer une autre saisie</button>
+      <p class="resume-notice" id="entryOtherNotice" hidden></p>
       <div class="time-section"><strong>Matin</strong><div class="time-grid"><label>Début<input id="morningStart" type="time"></label><label>Fin<input id="morningEnd" type="time"></label></div></div>
       <div class="time-section"><strong>Après-midi</strong><div class="time-grid"><label>Début<input id="afternoonStart" type="time"></label><label>Fin<input id="afternoonEnd" type="time"></label></div></div>
       <label>Pause non travaillée (minutes)<input id="breakMinutes" type="number" min="0" step="5" value="0"></label>
@@ -170,7 +184,8 @@
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20261011-1"></script>
+  <script src="app.js?v=20261012-2"></script>
 </body>
 </html>
+
 
