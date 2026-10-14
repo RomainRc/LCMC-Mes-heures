@@ -6,7 +6,7 @@ const path = require('node:path');
 const assets = [
   'lcmc-ui.css',
   'lcmc-logo.png',
-  'lcmc-hero.png',
+  'lcmc-header.jpg',
   'lcmc-earth.png',
   'lcmc-nunito.woff2',
   'OFL-Nunito.txt'

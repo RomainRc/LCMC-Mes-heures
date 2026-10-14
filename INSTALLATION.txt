@@ -1,22 +1,23 @@
-LCMC — INTERFACE ET CLIENTS — 12 OCTOBRE 2026
+LCMC — PHOTO DU TRACTEUR — 14 OCTOBRE 2026
 
-Cette mise à jour réunit :
-- l’interface validée : terre battue, petit logo, en-tête regroupé, heures et chiffre d’affaires en premier ;
-- la correction du changement de client ou de date : horaires, pause, kilomètres et notes conservés ;
-- la suppression des clients en conservant leurs anciennes journées.
+Cette mise à jour remplace l’illustration de l’en-tête par ta photo du tracteur John Deere.
+Le cadrage est adapté au téléphone et à la tablette. Le petit logo, les commandes du mois,
+la nouvelle interface et les corrections des clients sont conservés.
 
 INSTALLATION
 
-1. Décompresse LCMC_interface_et_clients.zip.
+1. Décompresse LCMC_mise_a_jour_photo_tracteur.zip.
 2. Ouvre ton dépôt GitHub RomainRc/LCMC-Mes-heures, onglet Code.
 3. Choisis Add file puis Upload files.
-4. Ajoute TOUS les fichiers du dossier décompressé directement à la racine du dépôt, puis Commit changes sur main.
-   Les images, la police, package.json et lcmc-ui-assets.cjs font partie de cette même mise à jour.
+4. Ajoute TOUS les fichiers décompressés directement à la racine du dépôt,
+   puis Commit changes sur main.
 5. Dans Actions, ouvre la dernière fabrication « Fabriquer APK Android » et attends la coche verte.
-6. Télécharge l’archive LCMC-Mes-Heures-APK, décompresse-la, puis ouvre app-debug.apk sur ton téléphone et ta tablette.
-7. Installe en mise à jour. La clé de signature reste celle déjà configurée.
+6. Télécharge l’archive LCMC-Mes-Heures-APK, décompresse-la, puis ouvre app-debug.apk
+   sur ton téléphone et ta tablette.
+7. Installe en mise à jour, sans désinstaller. La clé de signature et le package restent identiques.
 
 Dans Profil, la version affichée sera :
-Version 12.10.2026 · nouvelle interface et correction des clients
+Version 14.10.2026 · nouvelle photo du tracteur
 
-Les données déjà présentes restent dans l’application. La synchronisation utilise le même compte sur tes deux appareils.
+Les heures, kilomètres, clients, sauvegardes, PDF, widget et la synchronisation
+utilisent les mêmes données et réglages qu’avant.
