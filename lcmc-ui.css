@@ -12,7 +12,7 @@
   --green: #176044;
   --gold: #e2ad22;
   --line: #e6e9e4;
-  --bg: #f4f1e9;
+  --bg: #f3ead7;
   --shadow: 0 6px 22px rgba(64, 57, 42, .06);
   font-family: "LCMC Round", ui-rounded, system-ui, sans-serif;
   font-weight: 700;
@@ -20,8 +20,9 @@
 }
 body {
   background-color: var(--bg);
-  background-image: linear-gradient(rgba(244, 241, 233, .96), rgba(244, 241, 233, .96)), url("lcmc-earth.png");
-  background-size: auto, 640px 640px;
+  /* La teinte paille de la photo se prolonge sous toutes les cartes. */
+  background-image: linear-gradient(180deg, rgba(229, 209, 163, .92) 0, rgba(239, 225, 191, .94) 440px, rgba(244, 235, 216, .96) 1000px), url("lcmc-earth.png");
+  background-size: 100% 100%, 640px 640px;
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -50,25 +51,17 @@ button:focus-visible { outline: 3px solid #1762a9; outline-offset: 3px; }
   overflow: hidden;
   border: 0;
   border-radius: 0;
-  background: #d8c39b;
+  background: transparent;
   box-shadow: none;
-}
-.farm-header.compact-header::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent 85%, rgba(244, 241, 233, .35));
 }
 .header-toolbar {
   position: relative;
   z-index: 2;
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr) 44px;
-  align-items: center;
+  align-items: start;
   gap: 4px;
-  padding: 14px 12px;
+  padding: 12px 12px;
   background: transparent;
 }
 .header-brand {
@@ -86,7 +79,9 @@ button:focus-visible { outline: 3px solid #1762a9; outline-offset: 3px; }
 }
 .header-brand img { display: block; width: 48px; height: 48px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(17, 51, 58, .4)); }
 .header-brand span { white-space: nowrap; font-size: 11px; font-weight: 800; line-height: 1.1; color: #fff; text-shadow: 0 1px 3px rgba(25, 39, 25, .85); }
-.header-period { min-width: 0; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 0; border-radius: 24px; background: rgba(255, 255, 255, .75); }
+.header-period { position: relative; isolation: isolate; width: min(100%, 214px); min-width: 0; justify-self: center; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 0; }
+/* Bulle plus fine ; les flèches conservent chacune une cible tactile de 44 px. */
+.header-period::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: 20px; background: rgba(255, 253, 245, .78); border: 1px solid rgba(255, 255, 255, .58); pointer-events: none; }
 .month-arrow {
   display: grid;
   place-items: center;
@@ -99,9 +94,9 @@ button:focus-visible { outline: 3px solid #1762a9; outline-offset: 3px; }
   cursor: pointer;
   color: var(--navy);
 }
-.month-arrow .ui-icon { width: 36px; height: 36px; padding: 8px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(34, 78, 92, .12); }
+.month-arrow .ui-icon { width: 30px; height: 30px; padding: 6px; border-radius: 50%; background: rgba(255, 255, 255, .94); box-shadow: 0 1px 4px rgba(34, 78, 92, .1); }
 .month-arrow.previous .ui-icon { transform: rotate(180deg); }
-#monthPicker { min-width: 0; text-align: center; font-size: clamp(14px, 4.1vw, 21px); font-weight: 900; line-height: 1.15; text-wrap: balance; }
+#monthPicker { min-width: 0; text-align: center; font-size: clamp(12.5px, 3.6vw, 15px); font-weight: 900; line-height: 1.15; white-space: nowrap; }
 .network-badge { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .8); color: #276a37; cursor: pointer; }
 .network-badge .ui-icon { width: 31px; height: 30px; stroke-width: 2; }
 .network-badge .cloud-check { display: none; }
@@ -109,7 +104,12 @@ button:focus-visible { outline: 3px solid #1762a9; outline-offset: 3px; }
 .network-badge.is-synced .cloud-pending { display: none; }
 .network-badge.is-offline { color: #667a91; }
 .network-badge.has-error { color: #a43d42; }
-.compact-header .header-art { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100%; margin: 0; object-fit: cover; object-position: 50% 29%; }
+.compact-header .header-art {
+  position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100%; margin: 0; object-fit: cover; object-position: 50% 29%;
+  /* Le masque révèle le vrai fond : aucune ligne au bord de la photo. */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 68%, rgba(0, 0, 0, .92) 76%, rgba(0, 0, 0, .48) 90%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 68%, rgba(0, 0, 0, .92) 76%, rgba(0, 0, 0, .48) 90%, transparent 100%);
+}
 main { position: relative; z-index: 2; padding: 0; margin-top: -9px; }
 .monthly-summary { padding: 12px; margin-bottom: 12px; border: 1px solid rgba(255, 255, 255, .9); border-radius: 23px; background: #fff; box-shadow: var(--shadow); }
 .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
@@ -261,7 +261,7 @@ dialog input, dialog select, dialog textarea { font-weight: 600; }
   .header-brand { width: 52px; }
   .header-brand img { width: 43px; height: 43px; }
   .header-brand span { font-size: 10px; }
-  #monthPicker { font-size: 14px; }
+  #monthPicker { font-size: 12.5px; }
   .stat-primary strong { font-size: 33px; }
   .stat strong.stat-value-long { font-size: 25px; }
   .stat-secondary { gap: 3px; padding-left: 2px; padding-right: 2px; }
@@ -278,9 +278,8 @@ dialog input, dialog select, dialog textarea { font-weight: 600; }
   .header-brand { width: 150px; min-height: 48px; flex-direction: row; gap: 8px; }
   .header-brand img { width: 44px; height: 44px; }
   .header-brand span { font-size: 14px; }
-  .header-period { width: min(100%, 290px); justify-self: center; gap: 4px; }
-  #monthPicker { font-size: 18px; }
-  .month-arrow .ui-icon { width: 34px; height: 34px; padding: 7px; }
+  .header-period { width: min(100%, 234px); justify-self: center; gap: 0; }
+  #monthPicker { font-size: 16px; }
   .network-badge { justify-self: end; }
   main { margin-top: -12px; }
   .monthly-summary { padding: 18px; margin-bottom: 16px; }

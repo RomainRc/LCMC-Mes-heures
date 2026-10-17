@@ -1,32 +1,25 @@
-LCMC — INTERFACE SABLE ET VERT — 17 OCTOBRE 2026
+LCMC — MOIS COMPACT ET FOND PAILLE FONDU — 17 OCTOBRE 2026
 
-Cette mise à jour réunit l’interface validée et les dernières corrections :
-- fond sable discret et vert profond ;
-- résumé mensuel regroupé : heures et chiffre d’affaires en priorité,
-  puis kilomètres, jours travaillés et moyenne ;
-- petit logo et commandes du mois intégrés sur la photo du tracteur ;
-- Ajouter mes heures en grand, puis Non travaillé et Exporter PDF côte à côte ;
-- interactions tactiles allégées et appui long avec confirmation de suppression ;
-- correction du client d’une journée en conservant les horaires déjà saisis ;
-- PDF détaillé sur une seule feuille A4 : client et notes, horaires du matin
-  et de l’après-midi, pauses, heures, kilomètres et totaux du mois.
+Retouches de cette mise à jour :
+- bulle du mois plus petite et remontée pour mieux dégager le tracteur ;
+- flèches visuellement allégées, avec de grandes zones tactiles ;
+- bas de la photo progressivement fondu dans le fond de l’application ;
+- fond crème et paille, dans les couleurs de la photo, sur toutes les pages ;
+- présentation adaptée au téléphone et à la tablette.
+
+Cette archive est une mise à jour du dépôt existant : elle s’ajoute à ses fichiers.
 
 INSTALLATION
 
-1. Décompresse LCMC_interface_moderne_tactile_PDF_A4.zip.
-2. Ouvre le dépôt GitHub RomainRc/LCMC-Mes-heures, onglet Code.
+1. Décompresse LCMC_mois_compact_fond_fondu.zip.
+2. Ouvre GitHub, dépôt RomainRc/LCMC-Mes-heures, onglet Code.
 3. Choisis Add file, puis Upload files.
-4. Ajoute les 13 fichiers directement à la racine du dépôt, puis Commit changes sur main.
-5. Dans Actions, attends la coche verte de la dernière fabrication Fabriquer APK Android.
-6. Télécharge LCMC-Mes-Heures-APK, décompresse l’archive, puis ouvre app-debug.apk.
-7. Installe en mise à jour sur le téléphone et la tablette, sans désinstaller.
-
-Le workflow utilise ta clé de signature fixe habituelle et le même package Android.
-Connecte-toi au même compte pour la synchronisation des deux appareils.
+4. Ajoute les fichiers de cette archive directement à la racine du dépôt,
+   puis Commit changes sur main.
+5. Dans Actions, attends la coche verte de Fabriquer APK Android.
+6. Télécharge LCMC-Mes-Heures-APK et décompresse l’archive.
+7. Ouvre app-debug.apk et installe la mise à jour sur le téléphone et la tablette,
+   sans désinstaller l’application existante.
 
 Version à vérifier dans Profil :
-Version 17.10.2026 · interface sable et vert
-
-Pour le PDF : choisis le mois dans Profil, puis Télécharger le PDF,
-ou utilise le bouton PDF du Calendrier pour le mois affiché.
-Le document choisit l’orientation A4 qui conserve tous les horaires sur une feuille.
+Version 17.10.2026 · mois compact et fond paille fondu
