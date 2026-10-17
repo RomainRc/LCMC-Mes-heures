@@ -101,7 +101,15 @@ function renderHomeDayOff(){
   button.querySelector('span').textContent=off?'Non travaillé ✓':'Non travaillé';
   button.title=worked?'Des heures sont déjà enregistrées aujourd’hui. Tu peux les modifier dans le calendrier.':off?'Retirer le statut non travaillé':'Marquer aujourd’hui non travaillé';
 }
-function renderRecent(){const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);$('#recentEntries').innerHTML=rows.length?rows.map(e=>{const d=localDate(e.date),f=getFarm(e.farmId),h=hoursFor(e);return `<article class="entry-item" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="recentEntriesHint"><div class="entry-date"><strong>${d.getDate()}</strong><span>${shortMonths[d.getMonth()]}</span></div><div class="entry-info"><strong>${escapeHtml(f.name)}</strong><small>${escapeHtml(e.notes||formatSchedule(e))}</small><small>${displayKm(kilometresFor(e))}</small></div><div class="entry-hours"><strong>${displayHours(h)}</strong><small>${euro(h*state.rate)}</small><button class="edit-inline" data-edit="${e.id}">Modifier</button></div></article>`}).join(''):'<div class="empty">Aucune heure enregistrée pour le moment.</div>';bindEditButtons()}
+function renderRecent(){
+  const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,2);
+  $('#recentEntries').innerHTML=rows.length?rows.map(e=>{
+    const d=localDate(e.date),f=getFarm(e.farmId),h=hoursFor(e);
+    const editLabel=`Modifier la journée du ${formatDate(e.date)}`;
+    return `<article class="entry-item" data-entry-id="${escapeHtml(e.id)}" tabindex="0" aria-describedby="recentEntriesHint"><div class="entry-date"><strong>${d.getDate()}</strong><span>${shortMonths[d.getMonth()]}</span></div><div class="entry-info"><strong>${escapeHtml(f.name)}</strong></div><div class="entry-hours"><strong>${displayHours(h)}</strong><button class="edit-inline" type="button" data-edit="${escapeHtml(e.id)}" aria-label="${escapeHtml(editLabel)}"><svg class="ui-icon" aria-hidden="true"><use href="#ui-chevron"/></svg></button></div></article>`;
+  }).join(''):'<div class="empty">Aucune heure enregistrée pour le moment.</div>';
+  bindEditButtons();
+}
 function formatSchedule(e){const parts=[];if(e.morningStart&&e.morningEnd)parts.push(`${e.morningStart}–${e.morningEnd}`);if(e.afternoonStart&&e.afternoonEnd)parts.push(`${e.afternoonStart}–${e.afternoonEnd}`);return parts.join(' · ')||'Horaires non renseignés'}
 function renderEntryFarmOptions(selectedId='',historicalEntry=null){
   const farms=activeFarms();
@@ -704,7 +712,7 @@ $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 renderPdfMonthPicker();
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 17.10.2026 · interface sable et vert';
+versionLabel.textContent='Version 17.10.2026 · rendu fidèle à la maquette';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {

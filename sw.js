@@ -1,5 +1,5 @@
-const CACHE='lcmc-heures-interface-20261017-3';
-const ASSETS=['./','index.html','styles.css?v=20260920-2','theme-v2.css?v=20261017-3','lcmc-ui.css?v=20261017-3','app.js?v=20261017-3','manifest.webmanifest','lcmc-logo.png','lcmc-header.jpg','lcmc-earth.png','lcmc-nunito.woff2'];
+const CACHE='lcmc-heures-interface-20261017-4';
+const ASSETS=['./','index.html','styles.css?v=20260920-2','theme-v2.css?v=20261017-4','lcmc-ui.css?v=20261017-4','app.js?v=20261017-4','manifest.webmanifest','lcmc-logo.png','lcmc-header.jpg','lcmc-earth.png','lcmc-nunito.woff2'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('lcmc-heures-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
