@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#c9874a">
+  <meta name="theme-color" content="#f4f1e9">
   <meta name="description" content="Suivi des heures LCMC – Le Coup de Main du Coin Erdre et Loire">
   <title>Mes heures · LCMC</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css?v=20260920-2">
-  <link rel="stylesheet" href="theme-v2.css?v=20261014-1">
-  <link rel="stylesheet" href="lcmc-ui.css?v=20261014-1">
+  <link rel="stylesheet" href="theme-v2.css?v=20261017-3">
+  <link rel="stylesheet" href="lcmc-ui.css?v=20261017-3">
 </head>
 <body>
   <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -50,21 +50,25 @@
 
     <main id="appMain">
       <section class="view active" id="homeView">
-        <div class="stats-grid">
-          <article class="stat stat-primary hours-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-clock"/></svg><strong id="statHours">0 h</strong><span>Heures du mois</span></article>
-          <article class="stat stat-primary revenue-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-coins"/></svg><strong id="statRevenue">0 €</strong><span>Chiffre d’affaires</span></article>
-          <article class="stat stat-secondary kilometres-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-pin"/></svg><div><strong id="monthlyKilometres">0 km</strong><span>Kilomètres</span></div></article>
-          <article class="stat stat-secondary average-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-clock"/></svg><div><strong id="statAverage">0 h</strong><span>Moyenne / jour</span></div></article>
-        </div>
-        <div class="worked-days"><svg class="ui-icon" aria-hidden="true"><use href="#ui-calendar"/></svg><strong><span id="statDays">0</span> <span id="statDaysUnit">jours</span></strong><span id="statDaysLabel">travaillés</span></div>
+        <section class="monthly-summary" aria-label="Résumé du mois">
+          <div class="stats-grid">
+            <article class="stat stat-primary hours-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-clock"/></svg><span>Heures du mois</span><strong id="statHours">0 h</strong></article>
+            <article class="stat stat-primary revenue-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-coins"/></svg><span>Chiffre d’affaires</span><strong id="statRevenue">0 €</strong></article>
+          </div>
+          <div class="stats-secondary">
+            <article class="stat stat-secondary kilometres-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-pin"/></svg><div><strong id="monthlyKilometres">0 km</strong><span>Kilomètres</span></div></article>
+            <article class="stat stat-secondary worked-days"><svg class="ui-icon" aria-hidden="true"><use href="#ui-calendar"/></svg><div><strong><span id="statDays">0</span> <span id="statDaysUnit">jours</span></strong><span id="statDaysLabel">travaillés</span></div></article>
+            <article class="stat stat-secondary average-stat"><svg class="ui-icon" aria-hidden="true"><use href="#ui-clock"/></svg><div><strong id="statAverage">0 h</strong><span>Moyenne / jour</span></div></article>
+          </div>
+        </section>
         <section class="card quick-card action-panel">
           <h1 class="today-heading"><svg class="ui-icon" aria-hidden="true"><use href="#ui-calendar"/></svg><span id="todayLabel"></span></h1>
           <button class="primary-button home-add-button" type="button" data-open-entry><span class="action-symbol"><svg class="ui-icon" aria-hidden="true"><use href="#ui-plus"/></svg></span><span>Ajouter mes heures</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
-          <button class="home-day-off" id="homeDayOff" type="button" aria-pressed="false"><svg class="ui-icon" aria-hidden="true"><use href="#ui-off"/></svg><span>Non travaillé</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
+          <button class="home-day-off" id="homeDayOff" type="button" aria-pressed="false"><svg class="ui-icon" aria-hidden="true"><use href="#ui-off"/></svg><span>Non travaillé</span></button>
+          <button class="home-pdf-button" id="homePdfButton" type="button" data-export-pdf><svg class="ui-icon" aria-hidden="true"><use href="#ui-pdf"/></svg><span>Exporter PDF</span></button>
         </section>
-        <button class="home-pdf-button" id="homePdfButton" type="button" data-export-pdf><svg class="ui-icon" aria-hidden="true"><use href="#ui-pdf"/></svg><span>Exporter le mois</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
 
-        <section class="section-block">
+        <section class="section-block recent-panel">
           <div class="section-heading"><h2>Dernières journées</h2><button class="text-button" data-nav="calendar">Tout voir</button></div>
           <p class="entry-gesture-hint" id="recentEntriesHint">Maintiens une journée pour la supprimer.</p>
           <div id="recentEntries" class="entry-list"></div>
@@ -110,7 +114,7 @@
           <label class="restore-label">Restaurer une sauvegarde <span>Choisir un fichier</span><input id="restoreInput" type="file" accept="application/json"></label>
           <button id="installButton" hidden>Installer l’application <b>›</b></button>
         </section>
-        <p class="privacy-note" id="appVersion">Version 14.10.2026 · nouvelle photo du tracteur</p>
+        <p class="privacy-note" id="appVersion">Version 17.10.2026 · interface sable et vert</p>
         <p class="privacy-note">Tes données restent enregistrées sur cet appareil et l’application fonctionne même sans réseau.</p>
       </section>
     </main>
@@ -184,7 +188,7 @@
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20261014-1"></script>
+  <script src="app.js?v=20261017-3"></script>
 </body>
 </html>
 
