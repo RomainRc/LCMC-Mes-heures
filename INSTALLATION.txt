@@ -1,25 +1,32 @@
-LCMC — MOIS COMPACT ET FOND PAILLE FONDU — 17 OCTOBRE 2026
+LCMC — BARRE D’ÉTAT ANDROID — 18 OCTOBRE 2026
 
-Retouches de cette mise à jour :
-- bulle du mois plus petite et remontée pour mieux dégager le tracteur ;
-- flèches visuellement allégées, avec de grandes zones tactiles ;
-- bas de la photo progressivement fondu dans le fond de l’application ;
-- fond crème et paille, dans les couleurs de la photo, sur toutes les pages ;
-- présentation adaptée au téléphone et à la tablette.
+La correction garde l’heure, le réseau et la batterie visibles sur la photo,
+avec les boutons du mois et le logo placés sous la zone de la caméra.
+Elle réapplique ce réglage à l’ouverture et au retour dans l’application.
 
-Cette archive est une mise à jour du dépôt existant : elle s’ajoute à ses fichiers.
+Le dépôt GitHub vérifié le 18 octobre contenait encore la version
+« mois compact et fond paille fondu », sans le module Android de la barre d’état.
+Cette archive rassemble tous les fichiers nécessaires. La fabrication s’arrête
+avec un message explicite si la configuration ou le module manque.
 
 INSTALLATION
+1. Décompresse LCMC_correction_barre_etat_18_oct.zip.
+2. Ouvre le dépôt RomainRc/LCMC-Mes-heures, onglet Code,
+   puis Add file > Upload files.
+3. Sélectionne TOUS les fichiers décompressés et ajoute-les à la racine.
+   Il faut notamment remplacer package.json, capacitor.config.json et
+   lcmc-ui-assets.cjs, et ajouter lcmc-system-bars.cjs et lcmc-system-bars.js.
+4. Valide avec Commit changes et attends la coche verte de
+   « Fabriquer APK Android » dans Actions.
+5. Télécharge LCMC-Mes-Heures-APK, décompresse-le, puis installe app-debug.apk
+   en mise à jour sur le téléphone et la tablette.
 
-1. Décompresse LCMC_mois_compact_fond_fondu.zip.
-2. Ouvre GitHub, dépôt RomainRc/LCMC-Mes-heures, onglet Code.
-3. Choisis Add file, puis Upload files.
-4. Ajoute les fichiers de cette archive directement à la racine du dépôt,
-   puis Commit changes sur main.
-5. Dans Actions, attends la coche verte de Fabriquer APK Android.
-6. Télécharge LCMC-Mes-Heures-APK et décompresse l’archive.
-7. Ouvre app-debug.apk et installe la mise à jour sur le téléphone et la tablette,
-   sans désinstaller l’application existante.
+Dans Profil, la version doit afficher :
+Version 18.10.2026 · barre d’état Android
 
-Version à vérifier dans Profil :
-Version 17.10.2026 · mois compact et fond paille fondu
+La clé de signature fixe et le mécanisme de conservation des données restent
+ceux de ton dépôt. Il n’est pas nécessaire de désinstaller l’application.
+
+Les contrôles de préparation Android et de la présentation sont réalisés
+avant livraison. L’affichage de la barre système Samsung reste à confirmer
+sur le téléphone avec le nouvel APK.

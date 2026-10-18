@@ -8,7 +8,7 @@
     "android:sync": "cap sync android",
     "android:open": "cap open android",
     "capacitor:sync:before": "node lcmc-ui-assets.cjs",
-    "capacitor:sync:after": "node lcmc-widget.cjs"
+    "capacitor:sync:after": "node lcmc-widget.cjs && node lcmc-system-bars.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
