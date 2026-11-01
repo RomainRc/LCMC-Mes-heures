@@ -1,32 +1,34 @@
-LCMC — BARRE D’ÉTAT ANDROID — 18 OCTOBRE 2026
+LCMC — CLIENT MÉMORISÉ ET PDF PORTRAIT — 1 NOVEMBRE 2026
 
-La correction garde l’heure, le réseau et la batterie visibles sur la photo,
-avec les boutons du mois et le logo placés sous la zone de la caméra.
-Elle réapplique ce réglage à l’ouverture et au retour dans l’application.
+Après un enregistrement validé, le client choisi est proposé automatiquement
+pour la prochaine saisie, même après fermeture de l’application ou changement
+de mois. Tu peux toujours choisir un autre client dans la liste.
 
-Le dépôt GitHub vérifié le 18 octobre contenait encore la version
-« mois compact et fond paille fondu », sans le module Android de la barre d’état.
-Cette archive rassemble tous les fichiers nécessaires. La fabrication s’arrête
-avec un message explicite si la configuration ou le module manque.
+La première fois, l’application reprend le client actif de la journée la plus
+récente de l’historique. Un client supprimé n’est jamais présélectionné.
+Une saisie annulée ou invalide ne modifie pas le client mémorisé.
+Les journées existantes s’ouvrent avec leur propre client et leurs horaires.
+
+La préférence est conservée sur chaque appareil et dans ses sauvegardes.
+Les heures et kilomètres continuent de se synchroniser comme auparavant.
+La barre d’état Android validée le 18 octobre est conservée.
+
+PDF PORTRAIT
+Le PDF mensuel est maintenant au format A4 portrait. Il conserve le tableau
+complet du mois, les heures de début et de fin du matin et de l’après-midi,
+les pauses, clients, notes, kilomètres et totaux sur une seule page.
 
 INSTALLATION
-1. Décompresse LCMC_correction_barre_etat_18_oct.zip.
-2. Ouvre le dépôt RomainRc/LCMC-Mes-heures, onglet Code,
+1. Décompresse LCMC_client_memorise_PDF_portrait_01_nov.zip.
+2. Ouvre RomainRc/LCMC-Mes-heures sur GitHub, onglet Code,
    puis Add file > Upload files.
-3. Sélectionne TOUS les fichiers décompressés et ajoute-les à la racine.
-   Il faut notamment remplacer package.json, capacitor.config.json et
-   lcmc-ui-assets.cjs, et ajouter lcmc-system-bars.cjs et lcmc-system-bars.js.
-4. Valide avec Commit changes et attends la coche verte de
-   « Fabriquer APK Android » dans Actions.
+3. Ajoute TOUS les fichiers de l’archive directement à la racine du dépôt,
+   et valide avec Commit changes.
+4. Attends la coche verte « Fabriquer APK Android » dans Actions.
 5. Télécharge LCMC-Mes-Heures-APK, décompresse-le, puis installe app-debug.apk
-   en mise à jour sur le téléphone et la tablette.
+   en mise à jour, sans désinstaller.
 
-Dans Profil, la version doit afficher :
-Version 18.10.2026 · barre d’état Android
+Version à vérifier dans Profil :
+Version 01.11.2026 · client mémorisé et PDF portrait
 
-La clé de signature fixe et le mécanisme de conservation des données restent
-ceux de ton dépôt. Il n’est pas nécessaire de désinstaller l’application.
-
-Les contrôles de préparation Android et de la présentation sont réalisés
-avant livraison. L’affichage de la barre système Samsung reste à confirmer
-sur le téléphone avec le nouvel APK.
+La clé de signature fixe reste celle de ton dépôt.

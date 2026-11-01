@@ -3,7 +3,7 @@ const monthNames=['janvier','février','mars','avril','mai','juin','juillet','ao
 const shortMonths=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const dateFormatters=new Map();
 const currencyFormatter=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
-const defaultState={rate:25,farms:[{id:'lcdc',name:'Client principal',town:'Erdre et Loire',color:'#28755b'}],entries:[],nonWorkingDays:[],deletedFarmIds:[]};
+const defaultState={rate:25,farms:[{id:'lcdc',name:'Client principal',town:'Erdre et Loire',color:'#28755b'}],entries:[],nonWorkingDays:[],deletedFarmIds:[],lastFarmId:''};
 let state=loadState();let activeMonth=new Date();activeMonth.setDate(1);let selectedDate=isoDate(new Date());let installPrompt;let editingEntryId=null;let entryForceNew=false;
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 // Une réponse réseau ne doit jamais reconstruire un bouton pendant un appui.
@@ -55,6 +55,15 @@ function normaliseDeletedFarmIds(ids,strict=false){
   return [...new Set(ids.filter(valid))].sort();
 }
 function activeFarms(){const deleted=new Set(state.deletedFarmIds);return state.farms.filter(farm=>!deleted.has(farm.id))}
+function preferredEntryFarmId(){
+  const farms=activeFarms(),ids=new Set(farms.map(farm=>farm.id));
+  // Préférence conservée sur cet appareil et dans ses sauvegardes, sans conflit de synchronisation.
+  if(ids.has(state.lastFarmId))return state.lastFarmId;
+  // À la première ouverture après la mise à jour, reprendre le dernier client de l'historique actif.
+  let latest=null;
+  for(const entry of state.entries)if(ids.has(entry.farmId)&&(!latest||entry.date>=latest.date))latest=entry;
+  return latest?.farmId||farms[0]?.id||'';
+}
 function loadState(){
   try{
     const loaded={...structuredClone(defaultState),...JSON.parse(localStorage.getItem(STORE_KEY)||'{}')};
@@ -199,7 +208,7 @@ function openEntry(date=isoDate(new Date()),entryId=null){
   $('#entryForm').reset();editingEntryId=null;entryForceNew=false;
   $('#entryDate').value=entry?.date||date;$('#breakMinutes').value=0;
   if(entry){renderEntryFarmOptions(entry.farmId,entry);loadEntry(entry)}
-  else{renderEntryFarmOptions(farms[0].id);loadMatchingEntry()}
+  else{renderEntryFarmOptions(preferredEntryFarmId());loadMatchingEntry()}
   updateEntryTotal();showEntryDialog();
 }
 // Animation du panneau intérieur : compatible avec les dialogues des WebView.
@@ -409,7 +418,7 @@ function startAnotherEntry(){
   const date=$('#entryDate').value,selectedId=$('#entryFarm').value;
   $('#entryForm').reset();editingEntryId=null;entryForceNew=true;
   $('#entryDate').value=date;$('#breakMinutes').value=0;
-  renderEntryFarmOptions(activeFarms().some(farm=>farm.id===selectedId)?selectedId:activeFarms()[0]?.id||'');
+  renderEntryFarmOptions(activeFarms().some(farm=>farm.id===selectedId)?selectedId:preferredEntryFarmId());
   renderEntryContext();updateEntryTotal();$('#entryFarm').focus();
 }
 function bindEditButtons(){$$('[data-edit]').forEach(b=>b.onclick=()=>openEntry(state.entries.find(e=>e.id===b.dataset.edit)?.date||isoDate(new Date()),b.dataset.edit))}
@@ -427,7 +436,7 @@ $('#homePdfButton').onclick=()=>{navigate('profile');renderPdfMonthPicker();$('#
 ['morningStart','morningEnd','afternoonStart','afternoonEnd','breakMinutes'].forEach(id=>$(`#${id}`).addEventListener('input',updateEntryTotal));
 $('#entryDate').addEventListener('change',loadMatchingEntry);$('#entryFarm').addEventListener('change',loadMatchingEntry);
 $('#entryNewButton').addEventListener('click',startAnotherEntry);
-$('#entryForm').addEventListener('submit',e=>{e.preventDefault();if(entryDialogMotion.closing)return;const previous=state.entries.find(item=>item.id===editingEntryId),selectedFarmId=$('#entryFarm').value;if(!selectedFarmId||(!activeFarms().some(farm=>farm.id===selectedFarmId)&&previous?.farmId!==selectedFarmId)){toast('Choisis un client actif pour cette saisie');return}const rawKm=$('#entryKilometres').value.trim().replace(',','.');const km=rawKm===''?0:Number(rawKm);if(!Number.isFinite(km)||km<0||!/^\d*(?:\.\d*)?$/.test(rawKm)){toast('Renseigne un nombre de kilomètres positif, par exemple 24,5');return}const entry={kilometres:Math.round(km*10)/10,id:editingEntryId||crypto.randomUUID(),date:$('#entryDate').value,farmId:$('#entryFarm').value,morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:Number($('#breakMinutes').value)||0,notes:$('#entryNotes').value.trim()};if(Boolean(entry.morningStart)!==Boolean(entry.morningEnd)){toast('Complète le début et la fin du matin');return}if(Boolean(entry.afternoonStart)!==Boolean(entry.afternoonEnd)){toast('Complète le début et la fin de l’après-midi');return}if(hoursFor(entry)<=0){toast('Renseigne au moins une plage horaire');return}const index=state.entries.findIndex(item=>item.id===editingEntryId);if(index>=0)state.entries[index]=entry;else state.entries.push(entry);const updated=index>=0;editingEntryId=null;selectedDate=entry.date;activeMonth=localDate(entry.date);activeMonth.setDate(1);saveState();closeEntryDialog();toast(updated?'Journée mise à jour':'Horaires enregistrés')});
+$('#entryForm').addEventListener('submit',e=>{e.preventDefault();if(entryDialogMotion.closing)return;const previous=state.entries.find(item=>item.id===editingEntryId),selectedFarmId=$('#entryFarm').value;if(!selectedFarmId||(!activeFarms().some(farm=>farm.id===selectedFarmId)&&previous?.farmId!==selectedFarmId)){toast('Choisis un client actif pour cette saisie');return}const rawKm=$('#entryKilometres').value.trim().replace(',','.');const km=rawKm===''?0:Number(rawKm);if(!Number.isFinite(km)||km<0||!/^\d*(?:\.\d*)?$/.test(rawKm)){toast('Renseigne un nombre de kilomètres positif, par exemple 24,5');return}const entry={kilometres:Math.round(km*10)/10,id:editingEntryId||crypto.randomUUID(),date:$('#entryDate').value,farmId:$('#entryFarm').value,morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:Number($('#breakMinutes').value)||0,notes:$('#entryNotes').value.trim()};if(Boolean(entry.morningStart)!==Boolean(entry.morningEnd)){toast('Complète le début et la fin du matin');return}if(Boolean(entry.afternoonStart)!==Boolean(entry.afternoonEnd)){toast('Complète le début et la fin de l’après-midi');return}if(hoursFor(entry)<=0){toast('Renseigne au moins une plage horaire');return}const index=state.entries.findIndex(item=>item.id===editingEntryId);if(index>=0)state.entries[index]=entry;else state.entries.push(entry);const updated=index>=0;state.lastFarmId=entry.farmId;editingEntryId=null;selectedDate=entry.date;activeMonth=localDate(entry.date);activeMonth.setDate(1);saveState();closeEntryDialog();toast(updated?'Journée mise à jour':'Horaires enregistrés')});
 $('#farmForm').addEventListener('submit',e=>{e.preventDefault();state.farms.push({id:crypto.randomUUID(),name:$('#farmName').value.trim(),town:$('#farmTown').value.trim(),color:$('#farmColor').value});saveState();$('#farmDialog').close();e.target.reset();toast('Exploitation ajoutée')});
 $('#rateInput').onchange=()=>{state.rate=Math.max(0,Number($('#rateInput').value)||0);saveState();toast('Tarif mis à jour')};
 $('#exportButton').onclick=()=>{const rows=[['Date','Exploitation','Matin début','Matin fin','Après-midi début','Après-midi fin','Pause (min)','Total heures','Montant (€)','Kilomètres','Notes'],...state.entries.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,getFarm(e.farmId).name,e.morningStart,e.morningEnd,e.afternoonStart,e.afternoonEnd,e.breakMinutes,hoursFor(e).toFixed(2),(hoursFor(e)*state.rate).toFixed(2),kilometresFor(e),e.notes])];download('\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(';')).join('\n'),`heures-lcmc-${activeMonth.getFullYear()}-${String(activeMonth.getMonth()+1).padStart(2,'0')}.csv`,'text/csv')};
@@ -484,7 +493,7 @@ async function download(content,name,type){
 function updateNetwork(){const el=$('#networkStatus'),online=navigator.onLine,badge=$('#networkBadge');el.textContent=online?'En ligne':'Hors ligne — saisies conservées';el.classList.toggle('online',online);badge.classList.toggle('is-offline',!online);if(!online)badge.classList.remove('is-synced');badge.title=online?'Connexion et synchronisation des appareils':'Hors ligne — tes saisies restent sur cet appareil'}window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);updateNetwork();
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('#installButton').hidden=false});$('#installButton').onclick=async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('#installButton').hidden=true}};
 if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
-if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'add_work_entry',title:'Ajouter une journée de travail',description:'Enregistre des horaires de travail dans l’application LCMC.',inputSchema:{type:'object',properties:{date:{type:'string'},farmId:{type:'string'},morningStart:{type:'string'},morningEnd:{type:'string'},afternoonStart:{type:'string'},afternoonEnd:{type:'string'},breakMinutes:{type:'number'},notes:{type:'string'}},required:['date','farmId'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){const e={id:crypto.randomUUID(),morningStart:'',morningEnd:'',afternoonStart:'',afternoonEnd:'',breakMinutes:0,notes:'',...input};if(!activeFarms().some(f=>f.id===e.farmId)||hoursFor(e)<=0)throw new Error('Exploitation ou horaires invalides');state.entries.push(e);saveState();return{id:e.id,totalHours:hoursFor(e)}}}).catch?.(()=>{})}
+if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'add_work_entry',title:'Ajouter une journée de travail',description:'Enregistre des horaires de travail dans l’application LCMC.',inputSchema:{type:'object',properties:{date:{type:'string'},farmId:{type:'string'},morningStart:{type:'string'},morningEnd:{type:'string'},afternoonStart:{type:'string'},afternoonEnd:{type:'string'},breakMinutes:{type:'number'},notes:{type:'string'}},required:['date','farmId'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){const e={id:crypto.randomUUID(),morningStart:'',morningEnd:'',afternoonStart:'',afternoonEnd:'',breakMinutes:0,notes:'',...input};if(!activeFarms().some(f=>f.id===e.farmId)||hoursFor(e)<=0)throw new Error('Exploitation ou horaires invalides');state.entries.push(e);state.lastFarmId=e.farmId;saveState();return{id:e.id,totalHours:hoursFor(e)}}}).catch?.(()=>{})}
 renderAll();
 
 // Un seul tableau détaillé sur une feuille A4, même avec plusieurs clients par jour.
@@ -535,9 +544,10 @@ function buildHoursPdf(entries, monthDate=activeMonth) {
   const clientIds=[...new Set(included.map(entry=>entry.farmId))];
   const clientCodes=new Map(clientIds.map((id,index)=>[id,'C'+(index+1)]));
   const legendText=clientIds.map(id=>clientCodes.get(id)+' = '+getFarm(id).name).join(' ; ');
+  const portraitBounds=[28,98,250,292,334,376,418,450,514,567];
   const layouts=[
-    {width:842,height:595,bounds:[32,97,447,497,547,597,647,687,752,810],legend:[]},
-    {width:595,height:842,bounds:[42,112,239,282,325,368,411,447,505,553],legend:wrap(legendText,511,8)}
+    {width:595,height:842,bounds:portraitBounds,legend:[]},
+    {width:595,height:842,bounds:portraitBounds,legend:wrap(legendText,539,8)}
   ];
   let fontScale=1,rows=[],layout,top,bodyTop,bounds;
   for(const candidate of layouts){
@@ -702,7 +712,7 @@ pdfExportPanel.innerHTML=`<h2 id="pdfExportTitle">Exporter mes heures en PDF</h2
   <select id="pdfMonthSelect" aria-describedby="pdfMonthSummary pdfExportHint"></select>
   <p id="pdfMonthSummary" role="status" aria-live="polite"></p>
   <button id="pdfExportButton" type="button" class="primary-button full" data-export-pdf>Télécharger le PDF</button>
-  <p id="pdfExportHint">Une seule feuille A4 : horaires matin/après-midi, pauses, clients, notes et totaux heures/km.</p>`;
+  <p id="pdfExportHint">Une seule feuille A4 en portrait : horaires matin/après-midi, pauses, clients, notes et totaux heures/km.</p>`;
 $('#backupButton').insertAdjacentElement('beforebegin',pdfExportPanel);
 $('#pdfMonthSelect').addEventListener('change',renderPdfMonthPicker);
 $('#pdfExportButton').onclick=()=>exportHoursPdf($('#pdfMonthSelect').value);
@@ -712,7 +722,7 @@ $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 renderPdfMonthPicker();
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 18.10.2026 · barre d’état Android';
+versionLabel.textContent='Version 01.11.2026 · client mémorisé et PDF portrait';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {
