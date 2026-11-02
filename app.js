@@ -3,8 +3,8 @@ const monthNames=['janvier','février','mars','avril','mai','juin','juillet','ao
 const shortMonths=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const dateFormatters=new Map();
 const currencyFormatter=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
-const defaultState={rate:25,farms:[{id:'lcdc',name:'Client principal',town:'Erdre et Loire',color:'#28755b'}],entries:[],nonWorkingDays:[],deletedFarmIds:[],lastFarmId:''};
-let state=loadState();let activeMonth=new Date();activeMonth.setDate(1);let selectedDate=isoDate(new Date());let installPrompt;let editingEntryId=null;let entryForceNew=false;
+const defaultState={rate:25,farms:[{id:'lcdc',name:'Client principal',town:'Erdre et Loire',color:'#28755b'}],entries:[],nonWorkingDays:[],deletedFarmIds:[],lastFarmId:'',lastEntryId:''};
+let state=loadState();let activeMonth=new Date();activeMonth.setDate(1);let selectedDate=isoDate(new Date());let installPrompt;let editingEntryId=null;let entryForceNew=false;let entryTemplateSourceId=null;
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 // Une réponse réseau ne doit jamais reconstruire un bouton pendant un appui.
 const appInteraction={pointers:new Set(),quietUntil:0};
@@ -111,7 +111,7 @@ function renderHomeDayOff(){
   button.title=worked?'Des heures sont déjà enregistrées aujourd’hui. Tu peux les modifier dans le calendrier.':off?'Retirer le statut non travaillé':'Marquer aujourd’hui non travaillé';
 }
 function renderRecent(){
-  const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,2);
+  const rows=[...state.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   $('#recentEntries').innerHTML=rows.length?rows.map(e=>{
     const d=localDate(e.date),f=getFarm(e.farmId),h=hoursFor(e);
     const editLabel=`Modifier la journée du ${formatDate(e.date)}`;
@@ -199,15 +199,37 @@ function renderSelectedDay(){
   const add=$('#addSelectedDayHours');if(add)add.onclick=()=>openEntry(selectedDate);
   bindEditButtons();$$('[data-delete]').forEach(button=>button.onclick=()=>requestEntryDeletion([button.dataset.delete]));
 }
-function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();renderHomeDayOff();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));renderPdfMonthPicker();document.dispatchEvent(new Event('lcmc:state-rendered'))}
+function renderAll(){renderStats();renderRecent();renderFarms();renderCalendar();renderHomeDayOff();renderRepeatShortcut();$('#rateInput').value=state.rate;$('#todayLabel').textContent=capitalize(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));renderPdfMonthPicker();document.dispatchEvent(new Event('lcmc:state-rendered'))}
 function navigate(view){$$('.view').forEach(v=>v.classList.toggle('active',v.id===`${view}View`));$$('.nav-button').forEach(button=>{const active=button.dataset.view===view;button.classList.toggle('active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});scrollTo({top:0,behavior:'auto'});if(view==='calendar')renderCalendar()}
-function openEntry(date=isoDate(new Date()),entryId=null){
+function lastReusableEntry(){
+  const active=new Set(activeFarms().map(farm=>farm.id));
+  const entries=state.entries.filter(entry=>active.has(entry.farmId));
+  const remembered=entries.find(entry=>entry.id===state.lastEntryId);
+  if(remembered)return remembered;
+  const preferred=entries.filter(entry=>entry.farmId===state.lastFarmId);
+  return (preferred.length?preferred:entries).reduce((latest,entry)=>!latest||entry.date>=latest.date?entry:latest,null);
+}
+function renderRepeatShortcut(){
+  const entry=lastReusableEntry(),button=$('#homeRepeatButton');
+  button.hidden=!entry;
+  if(entry)button.title=`Reprendre la saisie du ${formatDate(entry.date)} — ${getFarm(entry.farmId).name}`;
+}
+function repeatLastEntry(){
+  if(document.querySelector('dialog[open]'))return;
+  const entry=lastReusableEntry();if(!entry){toast('Enregistre une première journée pour pouvoir la reprendre.');return;}
+  const today=isoDate(new Date()),existing=state.entries.filter(item=>item.date===today&&item.farmId===entry.farmId);
+  if(existing.length===1){openEntry(today,existing[0].id);toast('La saisie d’aujourd’hui est déjà enregistrée : elle a été ouverte.');return;}
+  if(existing.length>1){selectedDate=today;activeMonth=localDate(today);activeMonth.setDate(1);renderAll();navigate('calendar');toast('Plusieurs saisies existent aujourd’hui : choisis celle à modifier.');return;}
+  openEntry(today,null,entry);
+}
+function openEntry(date=isoDate(new Date()),entryId=null,template=null){
   if(document.querySelector('dialog[open]'))return;
   const entry=state.entries.find(item=>item.id===entryId),farms=activeFarms();
   if(!entry&&!farms.length){navigate('farms');$('#farmDialog').showModal();toast('Ajoute d’abord un client');return;}
-  $('#entryForm').reset();editingEntryId=null;entryForceNew=false;
+  $('#entryForm').reset();editingEntryId=null;entryForceNew=false;entryTemplateSourceId=null;
   $('#entryDate').value=entry?.date||date;$('#breakMinutes').value=0;
-  if(entry){renderEntryFarmOptions(entry.farmId,entry);loadEntry(entry)}
+  if(template){entryForceNew=true;entryTemplateSourceId=template.id;renderEntryFarmOptions(template.farmId);fillEntryFields(template);renderEntryContext()}
+  else if(entry){renderEntryFarmOptions(entry.farmId,entry);loadEntry(entry)}
   else{renderEntryFarmOptions(preferredEntryFarmId());loadMatchingEntry()}
   updateEntryTotal();showEntryDialog();
 }
@@ -399,13 +421,15 @@ function renderEntryContext(){
   renderEntryFarmOptions($('#entryFarm').value,entry);
   $('#entryMode').textContent=entry?'Continuer ma journée':'Nouvelle journée';
   $('#resumeNotice').hidden=!entry;
+  $('#entryRepeatNotice').hidden=!entryTemplateSourceId;
   $('#entryNewButton').hidden=!entry;
   $('#entrySubmit').textContent=entry?'Mettre à jour la journée':'Enregistrer la journée';
   const others=state.entries.filter(item=>item.id!==editingEntryId&&item.date===$('#entryDate').value&&item.farmId===$('#entryFarm').value);
   $('#entryOtherNotice').hidden=!others.length;
   $('#entryOtherNotice').textContent=others.length>1?'D’autres saisies existent pour ce client à cette date. Elles seront conservées séparément.':'Une autre saisie existe pour ce client à cette date. Elle sera conservée séparément.';
 }
-function loadEntry(entry){editingEntryId=entry.id;$('#morningStart').value=entry.morningStart||'';$('#morningEnd').value=entry.morningEnd||'';$('#afternoonStart').value=entry.afternoonStart||'';$('#afternoonEnd').value=entry.afternoonEnd||'';$('#breakMinutes').value=entry.breakMinutes||0;$('#entryNotes').value=entry.notes||'';$('#entryKilometres').value=entry.kilometres==null?'':kilometresFor(entry);renderEntryContext()}
+function fillEntryFields(entry){$('#morningStart').value=entry.morningStart||'';$('#morningEnd').value=entry.morningEnd||'';$('#afternoonStart').value=entry.afternoonStart||'';$('#afternoonEnd').value=entry.afternoonEnd||'';$('#breakMinutes').value=entry.breakMinutes||0;$('#entryNotes').value=entry.notes||'';$('#entryKilometres').value=entry.kilometres==null?'':kilometresFor(entry)}
+function loadEntry(entry){editingEntryId=entry.id;fillEntryFields(entry);renderEntryContext()}
 function loadMatchingEntry(){
   // Un changement de client ou de date corrige la saisie affichée, sans vider ses champs ni changer son identifiant.
   if(!editingEntryId&&!entryForceNew&&!entryDraftHasContent()){
@@ -416,7 +440,7 @@ function loadMatchingEntry(){
 }
 function startAnotherEntry(){
   const date=$('#entryDate').value,selectedId=$('#entryFarm').value;
-  $('#entryForm').reset();editingEntryId=null;entryForceNew=true;
+  $('#entryForm').reset();editingEntryId=null;entryForceNew=true;entryTemplateSourceId=null;
   $('#entryDate').value=date;$('#breakMinutes').value=0;
   renderEntryFarmOptions(activeFarms().some(farm=>farm.id===selectedId)?selectedId:preferredEntryFarmId());
   renderEntryContext();updateEntryTotal();$('#entryFarm').focus();
@@ -431,12 +455,13 @@ $$('[data-nav]').forEach(b=>b.onclick=()=>navigate(b.dataset.nav));$$('.nav-butt
 $$('[data-close-dialog]').forEach(b=>b.onclick=()=>b.dataset.closeDialog==='entryDialog'?closeEntryDialog():document.getElementById(b.dataset.closeDialog).close());
 $('#prevMonth').onclick=$('#calPrev').onclick=()=>changeMonth(-1);$('#nextMonth').onclick=$('#calNext').onclick=()=>changeMonth(1);$('#menuButton').onclick=()=>navigate('profile');$('#addFarmButton').onclick=()=>$('#farmDialog').showModal();
 $('#networkBadge').onclick=()=>{navigate('profile');$('#lcmcSyncPanel')?.scrollIntoView({block:'start',behavior:'smooth'})};
+$('#homeRepeatButton').onclick=repeatLastEntry;
 $('#homeDayOff').onclick=()=>{if(!$('#homeDayOff').disabled){const today=isoDate(new Date());setDayNonWorking(today,!isNonWorkingDay(today))}};
 $('#homePdfButton').onclick=()=>{navigate('profile');renderPdfMonthPicker();$('#pdfMonthSelect').value=isoDate(activeMonth).slice(0,7);renderPdfMonthPicker();$('#pdfMonthSelect').scrollIntoView({block:'center',behavior:'smooth'});$('#pdfMonthSelect').focus({preventScroll:true})};
 ['morningStart','morningEnd','afternoonStart','afternoonEnd','breakMinutes'].forEach(id=>$(`#${id}`).addEventListener('input',updateEntryTotal));
 $('#entryDate').addEventListener('change',loadMatchingEntry);$('#entryFarm').addEventListener('change',loadMatchingEntry);
 $('#entryNewButton').addEventListener('click',startAnotherEntry);
-$('#entryForm').addEventListener('submit',e=>{e.preventDefault();if(entryDialogMotion.closing)return;const previous=state.entries.find(item=>item.id===editingEntryId),selectedFarmId=$('#entryFarm').value;if(!selectedFarmId||(!activeFarms().some(farm=>farm.id===selectedFarmId)&&previous?.farmId!==selectedFarmId)){toast('Choisis un client actif pour cette saisie');return}const rawKm=$('#entryKilometres').value.trim().replace(',','.');const km=rawKm===''?0:Number(rawKm);if(!Number.isFinite(km)||km<0||!/^\d*(?:\.\d*)?$/.test(rawKm)){toast('Renseigne un nombre de kilomètres positif, par exemple 24,5');return}const entry={kilometres:Math.round(km*10)/10,id:editingEntryId||crypto.randomUUID(),date:$('#entryDate').value,farmId:$('#entryFarm').value,morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:Number($('#breakMinutes').value)||0,notes:$('#entryNotes').value.trim()};if(Boolean(entry.morningStart)!==Boolean(entry.morningEnd)){toast('Complète le début et la fin du matin');return}if(Boolean(entry.afternoonStart)!==Boolean(entry.afternoonEnd)){toast('Complète le début et la fin de l’après-midi');return}if(hoursFor(entry)<=0){toast('Renseigne au moins une plage horaire');return}const index=state.entries.findIndex(item=>item.id===editingEntryId);if(index>=0)state.entries[index]=entry;else state.entries.push(entry);const updated=index>=0;state.lastFarmId=entry.farmId;editingEntryId=null;selectedDate=entry.date;activeMonth=localDate(entry.date);activeMonth.setDate(1);saveState();closeEntryDialog();toast(updated?'Journée mise à jour':'Horaires enregistrés')});
+$('#entryForm').addEventListener('submit',e=>{e.preventDefault();if(entryDialogMotion.closing)return;const previous=state.entries.find(item=>item.id===editingEntryId),selectedFarmId=$('#entryFarm').value;if(!selectedFarmId||(!activeFarms().some(farm=>farm.id===selectedFarmId)&&previous?.farmId!==selectedFarmId)){toast('Choisis un client actif pour cette saisie');return}const rawKm=$('#entryKilometres').value.trim().replace(',','.');const km=rawKm===''?0:Number(rawKm);if(!Number.isFinite(km)||km<0||!/^\d*(?:\.\d*)?$/.test(rawKm)){toast('Renseigne un nombre de kilomètres positif, par exemple 24,5');return}const entry={kilometres:Math.round(km*10)/10,id:editingEntryId||crypto.randomUUID(),date:$('#entryDate').value,farmId:$('#entryFarm').value,morningStart:$('#morningStart').value,morningEnd:$('#morningEnd').value,afternoonStart:$('#afternoonStart').value,afternoonEnd:$('#afternoonEnd').value,breakMinutes:Number($('#breakMinutes').value)||0,notes:$('#entryNotes').value.trim()};if(Boolean(entry.morningStart)!==Boolean(entry.morningEnd)){toast('Complète le début et la fin du matin');return}if(Boolean(entry.afternoonStart)!==Boolean(entry.afternoonEnd)){toast('Complète le début et la fin de l’après-midi');return}if(hoursFor(entry)<=0){toast('Renseigne au moins une plage horaire');return}const index=state.entries.findIndex(item=>item.id===editingEntryId);if(index>=0)state.entries[index]=entry;else state.entries.push(entry);const updated=index>=0;state.lastFarmId=entry.farmId;state.lastEntryId=entry.id;editingEntryId=null;entryTemplateSourceId=null;selectedDate=entry.date;activeMonth=localDate(entry.date);activeMonth.setDate(1);saveState();closeEntryDialog();toast(updated?'Journée mise à jour':'Horaires enregistrés')});
 $('#farmForm').addEventListener('submit',e=>{e.preventDefault();state.farms.push({id:crypto.randomUUID(),name:$('#farmName').value.trim(),town:$('#farmTown').value.trim(),color:$('#farmColor').value});saveState();$('#farmDialog').close();e.target.reset();toast('Exploitation ajoutée')});
 $('#rateInput').onchange=()=>{state.rate=Math.max(0,Number($('#rateInput').value)||0);saveState();toast('Tarif mis à jour')};
 $('#exportButton').onclick=()=>{const rows=[['Date','Exploitation','Matin début','Matin fin','Après-midi début','Après-midi fin','Pause (min)','Total heures','Montant (€)','Kilomètres','Notes'],...state.entries.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,getFarm(e.farmId).name,e.morningStart,e.morningEnd,e.afternoonStart,e.afternoonEnd,e.breakMinutes,hoursFor(e).toFixed(2),(hoursFor(e)*state.rate).toFixed(2),kilometresFor(e),e.notes])];download('\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(';')).join('\n'),`heures-lcmc-${activeMonth.getFullYear()}-${String(activeMonth.getMonth()+1).padStart(2,'0')}.csv`,'text/csv')};
@@ -493,7 +518,7 @@ async function download(content,name,type){
 function updateNetwork(){const el=$('#networkStatus'),online=navigator.onLine,badge=$('#networkBadge');el.textContent=online?'En ligne':'Hors ligne — saisies conservées';el.classList.toggle('online',online);badge.classList.toggle('is-offline',!online);if(!online)badge.classList.remove('is-synced');badge.title=online?'Connexion et synchronisation des appareils':'Hors ligne — tes saisies restent sur cet appareil'}window.addEventListener('online',updateNetwork);window.addEventListener('offline',updateNetwork);updateNetwork();
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('#installButton').hidden=false});$('#installButton').onclick=async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('#installButton').hidden=true}};
 if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
-if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'add_work_entry',title:'Ajouter une journée de travail',description:'Enregistre des horaires de travail dans l’application LCMC.',inputSchema:{type:'object',properties:{date:{type:'string'},farmId:{type:'string'},morningStart:{type:'string'},morningEnd:{type:'string'},afternoonStart:{type:'string'},afternoonEnd:{type:'string'},breakMinutes:{type:'number'},notes:{type:'string'}},required:['date','farmId'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){const e={id:crypto.randomUUID(),morningStart:'',morningEnd:'',afternoonStart:'',afternoonEnd:'',breakMinutes:0,notes:'',...input};if(!activeFarms().some(f=>f.id===e.farmId)||hoursFor(e)<=0)throw new Error('Exploitation ou horaires invalides');state.entries.push(e);state.lastFarmId=e.farmId;saveState();return{id:e.id,totalHours:hoursFor(e)}}}).catch?.(()=>{})}
+if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'add_work_entry',title:'Ajouter une journée de travail',description:'Enregistre des horaires de travail dans l’application LCMC.',inputSchema:{type:'object',properties:{date:{type:'string'},farmId:{type:'string'},morningStart:{type:'string'},morningEnd:{type:'string'},afternoonStart:{type:'string'},afternoonEnd:{type:'string'},breakMinutes:{type:'number'},notes:{type:'string'}},required:['date','farmId'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){const e={id:crypto.randomUUID(),morningStart:'',morningEnd:'',afternoonStart:'',afternoonEnd:'',breakMinutes:0,notes:'',...input};if(!activeFarms().some(f=>f.id===e.farmId)||hoursFor(e)<=0)throw new Error('Exploitation ou horaires invalides');state.entries.push(e);state.lastFarmId=e.farmId;state.lastEntryId=e.id;saveState();return{id:e.id,totalHours:hoursFor(e)}}}).catch?.(()=>{})}
 renderAll();
 
 // Un seul tableau détaillé sur une feuille A4, même avec plusieurs clients par jour.
@@ -531,7 +556,7 @@ function buildHoursPdf(entries, monthDate=activeMonth) {
     if(current)result.push(current);
     return result.length?result:['-'];
   }
-  const headerHeight=28,bodyBottom=64;
+  const headerHeight=32,totalsHeight=30,bodyBottom=64;
   const records=[];
   for(const day of days){
     day.entries.sort((a,b)=>(a.morningStart||a.afternoonStart||'').localeCompare(b.morningStart||b.afternoonStart||'')||getFarm(a.farmId).name.localeCompare(getFarm(b.farmId).name));
@@ -544,31 +569,36 @@ function buildHoursPdf(entries, monthDate=activeMonth) {
   const clientIds=[...new Set(included.map(entry=>entry.farmId))];
   const clientCodes=new Map(clientIds.map((id,index)=>[id,'C'+(index+1)]));
   const legendText=clientIds.map(id=>clientCodes.get(id)+' = '+getFarm(id).name).join(' ; ');
-  const portraitBounds=[28,98,250,292,334,376,418,450,514,567];
+  const portraitBounds=[24,102,277,316,355,394,433,461,518,571];
   const layouts=[
     {width:595,height:842,bounds:portraitBounds,legend:[]},
-    {width:595,height:842,bounds:portraitBounds,legend:wrap(legendText,539,8)}
+    {width:595,height:842,bounds:portraitBounds,legend:wrap(legendText,547,8.5)}
   ];
-  let fontScale=1,rows=[],layout,top,bodyTop,bounds;
+  let fontScale=1,rows=[],layout,top,bodyTop,bounds,fitted=false;
   for(const candidate of layouts){
     layout=candidate;bounds=layout.bounds;
-    top=layout.height-79-layout.legend.length*11;
-    bodyTop=top-headerHeight;fontScale=1;
-    for(let attempt=0;attempt<8;attempt++){
-      rows=records.map(row=>{
+    top=layout.height-79-layout.legend.length*12;
+    bodyTop=top-headerHeight;
+    const available=bodyTop-bodyBottom;
+    const rowsAt=scale=>records.map(row=>{
         const detail=layout.legend.length&&row.entry?clientCodes.get(row.entry.farmId)+(row.entry.notes?' - Note : '+row.entry.notes:''):row.detail;
-        const clientLines=wrap(detail,bounds[2]-bounds[1]-12,8.5*fontScale);
-        return {...row,clientLines,height:Math.max(12.8*fontScale,(clientLines.length*9.7+3.1)*fontScale)};
+        const clientLines=wrap(detail,bounds[2]-bounds[1]-12,8.5*scale);
+        return {...row,clientLines,height:Math.max(12.8*scale,(clientLines.length*9.7+3.1)*scale)};
       });
-      const height=rows.reduce((sum,row)=>sum+row.height,0);
-      if(height<=bodyTop-bodyBottom+.01)break;
-      const next=Math.max(7/8.5,fontScale*(bodyTop-bodyBottom)/height*.995);
-      if(next>=fontScale-.0001)break;
-      fontScale=next;
+    const height=list=>list.reduce((sum,row)=>sum+row.height,0);
+    let low=7/8.5,high=11/8.5;
+    if(height(rowsAt(low))>available+.001)continue;
+    if(height(rowsAt(high))<=available+.001)low=high;
+    else for(let attempt=0;attempt<22;attempt++){
+      const middle=(low+high)/2;
+      if(height(rowsAt(middle))<=available)low=middle;else high=middle;
     }
-    if(rows.reduce((sum,row)=>sum+row.height,0)<=bodyTop-bodyBottom+.01)break;
+    fontScale=low;rows=rowsAt(fontScale);fitted=true;break;
   }
-  if(rows.reduce((sum,row)=>sum+row.height,0)>bodyTop-bodyBottom+.01)throw Error('Ce mois contient trop de texte pour une seule feuille A4 lisible. Les horaires restent conservés dans l’application.');
+  if(!fitted)throw Error('Ce mois contient trop de texte pour une seule feuille A4 lisible. Les horaires restent conservés dans l’application.');
+  // Le corps du tableau remplit la hauteur imprimable : le blanc devient de l'espace entre les lignes.
+  const extra=Math.max(0,bodyTop-bodyBottom-rows.reduce((sum,row)=>sum+row.height,0))/rows.length;
+  rows=rows.map(row=>({...row,contentHeight:row.height,height:row.height+extra}));
   const left=bounds[0],right=bounds[9],tableWidth=right-left;
   const pages=[rows];
   let commands=[];
@@ -582,6 +612,11 @@ function buildHoursPdf(entries, monthDate=activeMonth) {
   const box=(x,y,width,height,color)=>commands.push(`${rgb(color)} rg ${x} ${y} ${width} ${height} re f`);
   const rule=(x1,y1,x2,y2,color=line,width=.5)=>commands.push(`${rgb(color)} RG ${width} w ${x1} ${y1} m ${x2} ${y2} l S`);
   const center=column=>(bounds[column]+bounds[column+1])/2;
+  function columnSize(value,column,size,bold=false){
+    const fittedSize=Math.min(size,(bounds[column+1]-bounds[column]-6)/Math.max(.001,textWidth(value,1,bold)));
+    if(fittedSize<7)throw Error('Une valeur est trop longue pour une colonne A4 lisible. Les données restent conservées dans l’application.');
+    return fittedSize;
+  }
   const pageIds=[];
   pages.forEach((pageRows,pageIndex)=>{
     commands=[];
@@ -590,40 +625,42 @@ function buildHoursPdf(entries, monthDate=activeMonth) {
     text('Romain Rincé',right,layout.height-27,10,false,muted,'right');
     text('Toutes exploitations - horaires détaillés',right,layout.height-51,9,false,muted,'right');
     rule(left,layout.height-65,right,layout.height-65);
-    layout.legend.forEach((value,index)=>text(value,left,layout.height-82-index*11,8,false,muted));
+    layout.legend.forEach((value,index)=>text(value,left,layout.height-83-index*12,8.5,false,muted));
     box(left,bodyTop,tableWidth,headerHeight,'#EAF0E4');
-    text('Jour',center(0),top-18,9,true,navy,'center');
-    text('Client / notes',center(1),top-18,9,true,navy,'center');
-    text('Matin',(bounds[2]+bounds[4])/2,top-10,9,true,navy,'center');
-    text('Après-midi',(bounds[4]+bounds[6])/2,top-10,9,true,navy,'center');
-    for(const [column,label] of [[2,'Début'],[3,'Fin'],[4,'Début'],[5,'Fin']])text(label,center(column),top-23,8,true,navy,'center');
-    text('Pause',center(6),top-10,8,true,navy,'center');
-    text('(min)',center(6),top-23,7.5,false,navy,'center');
-    text('Total',center(7),top-10,9,true,navy,'center');
-    text('heures',center(7),top-23,8,false,navy,'center');
-    text('Km',center(8),top-18,9,true,navy,'center');
-    rule(bounds[2],top-14,bounds[6],top-14);
+    text('Jour',center(0),top-21,10,true,navy,'center');
+    text('Client / notes',center(1),top-21,10,true,navy,'center');
+    text('Matin',(bounds[2]+bounds[4])/2,top-11,10,true,navy,'center');
+    text('Après-midi',(bounds[4]+bounds[6])/2,top-11,10,true,navy,'center');
+    for(const [column,label] of [[2,'Début'],[3,'Fin'],[4,'Début'],[5,'Fin']])text(label,center(column),top-27,9,true,navy,'center');
+    text('Pause',center(6),top-12,8.5,true,navy,'center');
+    text('(min)',center(6),top-27,8,false,navy,'center');
+    text('Total',center(7),top-12,10,true,navy,'center');
+    text('heures',center(7),top-27,9,false,navy,'center');
+    text('Km',center(8),top-21,10,true,navy,'center');
+    rule(bounds[2],top-16,bounds[6],top-16);
     rule(left,top,right,top);rule(left,bodyTop,right,bodyTop);
     let rowTop=bodyTop;
     for(const row of pageRows){
       const color=row.entry?navy:row.off?red:muted;
       if(row.day.number%2===0)box(left,rowTop-row.height,tableWidth,row.height,'#F6F8F5');
-      const y=rowTop-9.7*fontScale,weekday=weekdayNames[localDate(row.day.date).getDay()];
-      text(`${weekday} ${String(row.day.number).padStart(2,'0')}`,left+4,y,8.5*fontScale,false,color);
+      const y=rowTop-(row.height-row.contentHeight)/2-9.7*fontScale,weekday=weekdayNames[localDate(row.day.date).getDay()];
+      const cellY=rowTop-(row.height-12.8*fontScale)/2-9.7*fontScale;
+      const dateLabel=`${weekday} ${String(row.day.number).padStart(2,'0')}`;
+      text(dateLabel,left+4,cellY,columnSize(dateLabel,0,8.5*fontScale),false,color);
       row.clientLines.forEach((detail,index)=>text(detail,bounds[1]+6,y-index*9.7*fontScale,8.5*fontScale,false,color));
       const entry=row.entry;
       const values=entry?[entry.morningStart||'-',entry.morningEnd||'-',entry.afternoonStart||'-',entry.afternoonEnd||'-',String(Number(entry.breakMinutes)||0),duration(Math.round(hoursFor(entry)*60)),distance(Math.round(kilometresFor(entry)*10))]:Array(7).fill('-');
-      values.forEach((value,index)=>text(value,center(index+2),y,(index===5?9.5:9)*fontScale,index===5&&!!entry,color,'center'));
+      values.forEach((value,index)=>text(value,center(index+2),cellY,columnSize(value,index+2,(index===5?9.5:9)*fontScale,index===5&&!!entry),index===5&&!!entry,color,'center'));
       rowTop-=row.height;rule(left,rowTop,right,rowTop);
     }
-    bounds.forEach((x,index)=>rule(x,[3,5].includes(index)?top-14:top,x,rowTop));
+    bounds.forEach((x,index)=>rule(x,[3,5].includes(index)?top-16:top,x,rowTop));
     if(pageIndex===pages.length-1){
-      box(left,rowTop-26,tableWidth,26,'#EAF0E4');
-      text('TOTAL DU MOIS',left+10,rowTop-17,11,true,green);
-      text(duration(totalMinutes),center(7),rowTop-17,11,true,navy,'center');
-      text(distance(totalKmTenths),center(8),rowTop-17,11,true,navy,'center');
-      [left,bounds[7],bounds[8],right].forEach(x=>rule(x,rowTop,x,rowTop-26));
-      rule(left,rowTop-26,right,rowTop-26);
+      box(left,rowTop-totalsHeight,tableWidth,totalsHeight,'#EAF0E4');
+      text('TOTAL DU MOIS',left+10,rowTop-20,12,true,green);
+      text(duration(totalMinutes),center(7),rowTop-20,columnSize(duration(totalMinutes),7,12,true),true,navy,'center');
+      text(distance(totalKmTenths),center(8),rowTop-20,columnSize(distance(totalKmTenths),8,12,true),true,navy,'center');
+      [left,bounds[7],bounds[8],right].forEach(x=>rule(x,rowTop,x,rowTop-totalsHeight));
+      rule(left,rowTop-totalsHeight,right,rowTop-totalsHeight);
     }
     text('Le Coup de Main du Coin - Erdre et Loire',left,18,8,false,muted);
     text('1 / 1',right,18,8,false,muted,'right');
@@ -722,7 +759,7 @@ $('#exportButton').insertAdjacentElement('beforebegin',calendarPdf);
 renderPdfMonthPicker();
 let versionLabel=$('#appVersion');
 if(!versionLabel){versionLabel=document.createElement('p');versionLabel.className='privacy-note';$('#profileView').appendChild(versionLabel);}
-versionLabel.textContent='Version 01.11.2026 · client mémorisé et PDF portrait';
+versionLabel.textContent='Version 02.11.2026 · PDF portrait aéré';
 
 // Fusion a trois versions : base synchronisee, appareil, serveur.
 const LcmcSyncCore = (() => {
@@ -823,12 +860,28 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
   const css=document.createElement('style');css.textContent=`#lcmcSyncPanel{background:#fff;border:1px solid #dde4e1;border-radius:12px;padding:20px;margin:20px 0;overflow-wrap:anywhere}#lcmcSyncPanel h2{margin:0 0 12px}#lcmcSyncPanel p{line-height:1.45;margin:10px 0}#lcmcSyncPanel label{display:grid;gap:7px;margin:14px 0;font-weight:600}#lcmcSyncPanel input{width:100%;min-width:0;box-sizing:border-box;padding:12px;border:1px solid #ccd6d3;border-radius:8px;font:inherit}#lcmcSyncPanel button{font:inherit;padding:12px;border:1px solid #ccd6d3;border-radius:8px;background:#f2f6ef;color:#355521;cursor:pointer;white-space:normal}#lcmcSyncPanel button:disabled{opacity:.5}#lcmcSyncPanel [hidden]{display:none!important}.lcmc-sync-actions{display:flex;gap:10px;flex-wrap:wrap}.lcmc-sync-actions button{flex:1;min-width:140px}#lcmcSyncStatus{font-weight:700;color:#355521}#lcmcSyncConflict{border-top:2px solid #cc9d36;margin-top:20px;padding-top:12px}#lcmcSyncConflictList p{font-size:14px;background:#fbf6ea;padding:10px}`;
   document.head.appendChild(css);document.querySelector('#profileView').appendChild(panel);
   const el=id=>document.getElementById(id);
-  function status(text,error=false){el('lcmcSyncStatus').textContent=text;el('lcmcSyncStatus').style.color=error?'#a63f3f':'#355521';const badge=el('networkBadge');badge.title=text;badge.classList.toggle('is-synced',!error&&navigator.onLine&&text.startsWith('À jour'));badge.classList.toggle('has-error',error)}
+  let syncMessage='',syncError=false;
+  function renderHeaderSync(){
+    const chip=el('headerSyncStatus'),online=navigator.onLine;
+    const synced=!!session&&!!meta.last&&!syncError&&online&&syncMessage.startsWith('À jour');
+    let label=!online?'Hors ligne · saisie conservée':syncError?'Échange à réessayer':!session?'Appareils non connectés':'Synchronisation en attente';
+    if(online&&session&&!syncError&&/Échange|Connexion|Synchronisation/.test(syncMessage))label='Synchronisation…';
+    if(synced){
+      const date=new Date(meta.last),age=Math.max(0,Date.now()-meta.last);
+      label=age<60000?'Synchronisé à l’instant':isoDate(date)===isoDate(new Date())?'Synchronisé à '+date.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'Synchronisé le '+date.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    }
+    chip.classList.toggle('is-synced',synced);chip.classList.toggle('has-error',online&&syncError);
+    chip.querySelector('i').textContent=synced?'✓':'•';el('headerSyncLabel').textContent=label;
+    chip.title=syncMessage+(meta.last?' Dernier échange réussi : '+new Date(meta.last).toLocaleString('fr-FR'):'');
+    el('networkBadge').setAttribute('aria-label',chip.title||label);
+  }
+  function status(text,error=false){syncMessage=text;syncError=error;el('lcmcSyncStatus').textContent=text;el('lcmcSyncStatus').style.color=error?'#a63f3f':'#355521';const badge=el('networkBadge');badge.title=text;badge.classList.toggle('is-synced',!error&&navigator.onLine&&text.startsWith('À jour'));badge.classList.toggle('has-error',error);renderHeaderSync()}
   function ui(){
     el('lcmcSyncForm').hidden=!!session;el('lcmcSyncConnected').hidden=!session;
     el('lcmcSyncAccount').textContent=session?'Connecté : '+session.email:'';
     el('lcmcSyncLast').textContent=meta.last?'Dernier échange réussi : '+new Date(meta.last).toLocaleString('fr-FR'):'';
     el('lcmcSyncNow').disabled=busy;
+    renderHeaderSync();
   }
   function persistMeta(next){localStorage.setItem(META,JSON.stringify(next));meta=next}
   function schedule(delay=1200){clearTimeout(timer);timer=setTimeout(()=>sync(),delay)}
@@ -973,6 +1026,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=LcmcSyncCore;
   window.addEventListener('focus',()=>schedule(0));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0)});
   setInterval(()=>sync(),60000);
+  setInterval(renderHeaderSync,30000);
   ui();status(session?'Connexion à tes données…':'Connecte-toi sur tes deux appareils pour partager tes saisies.');
   if(session)schedule(0);
 })();

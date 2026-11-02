@@ -1,34 +1,33 @@
-LCMC — CLIENT MÉMORISÉ ET PDF PORTRAIT — 1 NOVEMBRE 2026
+LCMC — PDF PORTRAIT AÉRÉ — 2 NOVEMBRE 2026
 
-Après un enregistrement validé, le client choisi est proposé automatiquement
-pour la prochaine saisie, même après fermeture de l’application ou changement
-de mois. Tu peux toujours choisir un autre client dans la liste.
+Le PDF occupe maintenant toute la hauteur imprimable de la feuille A4 :
+police agrandie, colonnes rééquilibrées et lignes espacées jusqu’aux totaux
+en bas de page. Le détail des horaires, pauses, clients, notes, heures et
+kilomètres reste complet sur une seule page au format portrait.
 
-La première fois, l’application reprend le client actif de la journée la plus
-récente de l’historique. Un client supprimé n’est jamais présélectionné.
-Une saisie annulée ou invalide ne modifie pas le client mémorisé.
-Les journées existantes s’ouvrent avec leur propre client et leurs horaires.
+Cette mise à jour inclut aussi :
+- L’en-tête et le résumé du mois plus compacts, avec les grands totaux conservés.
+- L’état réel de synchronisation visible sous le mois.
+- Le bouton « Reprendre la dernière saisie » pour préremplir une journée
+  avec le client, les horaires, la pause, les kilomètres et les notes.
+  Il faut vérifier puis enregistrer. Si une saisie existe déjà aujourd’hui
+  pour ce client, elle est ouverte sans remplacement ni doublon automatique.
+- Trois journées récentes avec la précision « Tous les mois ».
+- Le dernier client mémorisé après fermeture de l’application.
+- Le PDF détaillé sur une seule feuille A4 en portrait.
 
-La préférence est conservée sur chaque appareil et dans ses sauvegardes.
-Les heures et kilomètres continuent de se synchroniser comme auparavant.
-La barre d’état Android validée le 18 octobre est conservée.
-
-PDF PORTRAIT
-Le PDF mensuel est maintenant au format A4 portrait. Il conserve le tableau
-complet du mois, les heures de début et de fin du matin et de l’après-midi,
-les pauses, clients, notes, kilomètres et totaux sur une seule page.
+La photo, le logo, la barre d’état Android, les données et la clé de signature
+fixe sont conservés. Les heures continuent de se synchroniser entre appareils.
 
 INSTALLATION
-1. Décompresse LCMC_client_memorise_PDF_portrait_01_nov.zip.
-2. Ouvre RomainRc/LCMC-Mes-heures sur GitHub, onglet Code,
-   puis Add file > Upload files.
-3. Ajoute TOUS les fichiers de l’archive directement à la racine du dépôt,
-   et valide avec Commit changes.
-4. Attends la coche verte « Fabriquer APK Android » dans Actions.
-5. Télécharge LCMC-Mes-Heures-APK, décompresse-le, puis installe app-debug.apk
-   en mise à jour, sans désinstaller.
+1. Décompresse LCMC_PDF_portrait_aere_02_nov.zip.
+2. Ouvre le dépôt RomainRc/LCMC-Mes-heures sur GitHub, onglet Code.
+3. Add file > Upload files : ajoute TOUS les fichiers décompressés à la racine
+   du dépôt. Remplace notamment index.html, app.js, lcmc-ui.css et sw.js.
+4. Valide avec Commit changes et attends la coche verte
+   « Fabriquer APK Android » dans Actions.
+5. Télécharge LCMC-Mes-Heures-APK, décompresse-le puis installe app-debug.apk
+   en mise à jour sur le téléphone et la tablette, sans désinstaller.
 
 Version à vérifier dans Profil :
-Version 01.11.2026 · client mémorisé et PDF portrait
-
-La clé de signature fixe reste celle de ton dépôt.
+Version 02.11.2026 · PDF portrait aéré

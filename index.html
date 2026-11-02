@@ -9,8 +9,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%23123b63'/%3E%3Cpath d='M18 45V19h8v19h20v7z' fill='%23fff'/%3E%3Cpath d='M36 12c9 2 14 8 13 17-9 1-15-4-17-12 4 3 8 5 12 7-2-5-5-8-8-12z' fill='%23e4b522'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css?v=20260920-2">
-  <link rel="stylesheet" href="theme-v2.css?v=20261101-1">
-  <link rel="stylesheet" href="lcmc-ui.css?v=20261101-1">
+  <link rel="stylesheet" href="theme-v2.css?v=20261102-1">
+  <link rel="stylesheet" href="lcmc-ui.css?v=20261102-1">
 </head>
 <body>
   <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -26,6 +26,7 @@
       <symbol id="ui-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
       <symbol id="ui-off" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></symbol>
       <symbol id="ui-pdf" viewBox="0 0 24 24"><path d="M14 2H5v20h14V7ZM14 2v5h5"/><path d="M8 13h8M8 17h5"/></symbol>
+      <symbol id="ui-copy" viewBox="0 0 24 24"><rect x="8" y="7" width="12" height="14" rx="2"/><path d="M16 3H6a2 2 0 0 0-2 2v12"/></symbol>
     </defs>
   </svg>
   <div class="app-shell">
@@ -35,10 +36,13 @@
           <img src="lcmc-logo.png" alt="LCMC" width="64" height="64">
           <span>Mes heures</span>
         </button>
-        <div class="header-period" aria-label="Mois affiché">
-          <button class="month-arrow previous" id="prevMonth" type="button" aria-label="Mois précédent"><svg class="ui-icon" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
-          <strong id="monthPicker" aria-live="polite"></strong>
-          <button class="month-arrow" id="nextMonth" type="button" aria-label="Mois suivant"><svg class="ui-icon" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
+        <div class="header-period-group">
+          <div class="header-period" aria-label="Mois affiché">
+            <button class="month-arrow previous" id="prevMonth" type="button" aria-label="Mois précédent"><svg class="ui-icon" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
+            <strong id="monthPicker" aria-live="polite"></strong>
+            <button class="month-arrow" id="nextMonth" type="button" aria-label="Mois suivant"><svg class="ui-icon" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
+          </div>
+          <span class="header-sync-status" id="headerSyncStatus" role="status" aria-live="polite"><i aria-hidden="true"></i><span id="headerSyncLabel">Connexion aux appareils…</span></span>
         </div>
         <button class="network-badge" id="networkBadge" type="button" aria-label="Connexion et synchronisation">
           <svg class="ui-icon" viewBox="0 0 32 26" aria-hidden="true"><path d="M9 22h16a6 6 0 0 0 0-12 9 9 0 0 0-17-3 7.5 7.5 0 0 0 1 15Z"/><path class="cloud-check" d="m12 14 3 3 6-7"/><path class="cloud-pending" d="M16 18V10m-3 3 3-3 3 3"/></svg>
@@ -64,12 +68,13 @@
         <section class="card quick-card action-panel">
           <h1 class="today-heading"><svg class="ui-icon" aria-hidden="true"><use href="#ui-calendar"/></svg><span id="todayLabel"></span></h1>
           <button class="primary-button home-add-button" type="button" data-open-entry><span class="action-symbol"><svg class="ui-icon" aria-hidden="true"><use href="#ui-plus"/></svg></span><span>Ajouter mes heures</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
+          <button class="home-repeat-button" id="homeRepeatButton" type="button" hidden><svg class="ui-icon" aria-hidden="true"><use href="#ui-copy"/></svg><span>Reprendre la dernière saisie</span><svg class="ui-icon action-arrow" aria-hidden="true"><use href="#ui-chevron"/></svg></button>
           <button class="home-day-off" id="homeDayOff" type="button" aria-pressed="false"><svg class="ui-icon" aria-hidden="true"><use href="#ui-off"/></svg><span>Non travaillé</span></button>
           <button class="home-pdf-button" id="homePdfButton" type="button" data-export-pdf><svg class="ui-icon" aria-hidden="true"><use href="#ui-pdf"/></svg><span>Exporter PDF</span></button>
         </section>
 
         <section class="section-block recent-panel">
-          <div class="section-heading"><h2>Dernières journées</h2><button class="text-button" data-nav="calendar">Tout voir</button></div>
+          <div class="section-heading"><div><h2>Journées récentes</h2><p class="recent-scope">Tous les mois</p></div><button class="text-button" data-nav="calendar">Tout voir</button></div>
           <p class="entry-gesture-hint sr-only" id="recentEntriesHint">Maintiens une journée pour la supprimer.</p>
           <div id="recentEntries" class="entry-list"></div>
         </section>
@@ -114,7 +119,7 @@
           <label class="restore-label">Restaurer une sauvegarde <span>Choisir un fichier</span><input id="restoreInput" type="file" accept="application/json"></label>
           <button id="installButton" hidden>Installer l’application <b>›</b></button>
         </section>
-        <p class="privacy-note" id="appVersion">Version 01.11.2026 · client mémorisé et PDF portrait</p>
+        <p class="privacy-note" id="appVersion">Version 02.11.2026 · PDF portrait aéré</p>
         <p class="privacy-note">Tes données restent enregistrées sur cet appareil et l’application fonctionne même sans réseau.</p>
       </section>
     </main>
@@ -135,6 +140,7 @@
       <label>Exploitation<select id="entryFarm" required></select></label>
       <p id="deletedFarmNotice" class="deleted-farm-notice" hidden>Ce client a été supprimé de ta liste. Tu peux encore corriger ses anciennes heures.</p>
       <div class="resume-notice" id="resumeNotice" hidden>✓ Saisie chargée : tu peux corriger le client ou la date sans perdre tes horaires, tes kilomètres ni tes notes.</div>
+      <p class="resume-notice" id="entryRepeatNotice" hidden>Horaires et kilomètres repris de la dernière saisie. Vérifie la date et les valeurs avant d’enregistrer.</p>
       <button class="text-button" id="entryNewButton" type="button" hidden>Commencer une autre saisie</button>
       <p class="resume-notice" id="entryOtherNotice" hidden></p>
       <div class="time-section"><strong>Matin</strong><div class="time-grid"><label>Début<input id="morningStart" type="time"></label><label>Fin<input id="morningEnd" type="time"></label></div></div>
@@ -188,8 +194,8 @@
   </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="lcmc-system-bars.js?v=20261101-1"></script>
-  <script src="app.js?v=20261101-1"></script>
+  <script src="lcmc-system-bars.js?v=20261102-1"></script>
+  <script src="app.js?v=20261102-1"></script>
 </body>
 </html>
 
